@@ -1,0 +1,22 @@
+{
+  "name": "smart-parking-backend",
+  "version": "1.0.0",
+  "description": "Backend REST API para Smart Parking - Sistema Inteligente de Parqueo",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^9.0.1"
+  }
+}
