@@ -62,6 +62,21 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Autoreparación: si las tablas ya existían de un intento anterior (por eso
+-- el CREATE TABLE IF NOT EXISTS de arriba no hizo nada) pero les faltaba
+-- alguna columna, se agrega aquí sin tocar el resto de los datos.
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS created_by INTEGER;
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'OTHER';
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS rules TEXT;
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS establishment_id INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_establishments_created_by') THEN
