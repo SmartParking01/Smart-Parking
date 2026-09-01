@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Parking · Panel Administrativo</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar">
+      <div class="brand">🅿️ Smart Parking<span>Panel de control</span></div>
+      <nav id="side-nav">
+        <button data-route="#/dashboard" class="side-btn">📊 Panel general</button>
+        <button data-route="#/entries" class="side-btn">🚗 Entradas</button>
+        <button data-route="#/exits" class="side-btn">🚪 Salidas</button>
+        <button data-route="#/parking" class="side-btn">🗺️ Parqueo</button>
+        <button data-route="#/reservations" class="side-btn">📅 Reservas</button>
+        <button data-route="#/spaces" class="side-btn admin-only">🧱 Espacios</button>
+        <button data-route="#/establishments" class="side-btn admin-only">🏢 Establecimientos</button>
+        <button data-route="#/staff" class="side-btn admin-only">👥 Personal</button>
+        <button data-route="#/stats" class="side-btn admin-only">📈 Estadísticas</button>
+      </nav>
+      <button id="logout-btn" class="side-btn logout">🚪 Cerrar sesión</button>
+    </aside>
+
+    <main id="content">
+      <header id="topbar">
+        <h1 id="page-title">Panel</h1>
+        <span id="who-am-i"></span>
+      </header>
+      <section id="view"></section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
