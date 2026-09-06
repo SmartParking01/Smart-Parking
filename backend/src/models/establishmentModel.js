@@ -1,12 +1,12 @@
 const { query } = require("../config/db");
 
 const EstablishmentModel = {
-  async create({ name, type, address, rules, createdBy }) {
+  async create({ companyId, name, address, description }) {
     const { rows } = await query(
-      `INSERT INTO establishments (name, type, address, rules, created_by)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO establishments (company_id, name, address, description)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [name, type, address, rules || "", createdBy]
+      [companyId, name, address || null, description || null]
     );
     return rows[0];
   },
@@ -17,31 +17,53 @@ const EstablishmentModel = {
   },
 
   async listAll() {
-    const { rows } = await query("SELECT * FROM establishments ORDER BY name");
+    const { rows } = await query(
+      `SELECT e.*, c.name AS company_name
+       FROM establishments e
+       JOIN companies c ON c.id = e.company_id
+       ORDER BY e.name`
+    );
     return rows;
   },
 
-  async update(id, { name, type, address, rules }) {
+  async listByCompany(companyId) {
+    const { rows } = await query("SELECT * FROM establishments WHERE company_id = $1 ORDER BY name", [
+      companyId,
+    ]);
+    return rows;
+  },
+
+  async update(id, { name, address, description }) {
     await query(
-      `UPDATE establishments SET name = COALESCE($1, name), type = COALESCE($2, type),
-       address = COALESCE($3, address), rules = COALESCE($4, rules) WHERE id = $5`,
-      [name, type, address, rules, id]
+      `UPDATE establishments SET name = COALESCE($1, name), address = COALESCE($2, address),
+       description = COALESCE($3, description) WHERE id = $4`,
+      [name, address, description, id]
     );
     return this.findById(id);
   },
 
-  // Cuenta espacios por estado para un establecimiento (para disponibilidad rápida)
-  async availabilitySummary(id) {
+  // Disponibilidad agregada de TODOS los parqueos de un establecimiento,
+  // usando la vista v_parking_capacity que ya existe en el esquema.
+  async availabilitySummary(establishmentId) {
     const { rows } = await query(
-      `SELECT status, COUNT(*)::int as count FROM parking_spaces WHERE establishment_id = $1 GROUP BY status`,
-      [id]
+      `SELECT
+         COALESCE(SUM(total_spaces), 0)::int AS total,
+         COALESCE(SUM(available_spaces), 0)::int AS available,
+         COALESCE(SUM(reserved_spaces), 0)::int AS reserved,
+         COALESCE(SUM(occupied_spaces), 0)::int AS occupied,
+         COALESCE(SUM(blocked_spaces), 0)::int AS blocked
+       FROM v_parking_capacity
+       WHERE parking_id IN (SELECT id FROM parkings WHERE establishment_id = $1)`,
+      [establishmentId]
     );
-    const summary = { AVAILABLE: 0, RESERVED: 0, OCCUPIED: 0, BLOCKED: 0, TOTAL: 0 };
-    for (const row of rows) {
-      summary[row.status] = row.count;
-      summary.TOTAL += row.count;
-    }
-    return summary;
+    const r = rows[0];
+    return {
+      TOTAL: r.total,
+      AVAILABLE: r.available,
+      RESERVED: r.reserved,
+      OCCUPIED: r.occupied,
+      BLOCKED: r.blocked,
+    };
   },
 };
 

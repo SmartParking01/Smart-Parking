@@ -1,28 +1,26 @@
 const EstablishmentModel = require("../models/establishmentModel");
+const CompanyModel = require("../models/companyModel");
 const SpaceModel = require("../models/spaceModel");
 const { ok, fail } = require("../utils/response");
 
 async function create(req, res) {
-  const { name, type, address, rules } = req.body;
-  if (!name) return fail(res, "El nombre del establecimiento es obligatorio.");
+  const { companyId, name, address, description } = req.body;
+  if (!companyId || !name) return fail(res, "companyId y name son obligatorios.");
+  if (!(await CompanyModel.findById(companyId))) return fail(res, "La empresa indicada no existe.", 404);
 
-  const establishment = await EstablishmentModel.create({
-    name,
-    type: type || "OTHER",
-    address,
-    rules,
-    createdBy: req.user.id,
-  });
-  return ok(res, { establishment }, 201);
+  try {
+    const establishment = await EstablishmentModel.create({ companyId, name, address, description });
+    return ok(res, { establishment }, 201);
+  } catch (err) {
+    if (err.code === "23505") return fail(res, "Esa empresa ya tiene un establecimiento con ese nombre.", 409);
+    throw err;
+  }
 }
 
 async function list(req, res) {
   const establishments = await EstablishmentModel.listAll();
   const withAvailability = await Promise.all(
-    establishments.map(async (e) => ({
-      ...e,
-      availability: await EstablishmentModel.availabilitySummary(e.id),
-    }))
+    establishments.map(async (e) => ({ ...e, availability: await EstablishmentModel.availabilitySummary(e.id) }))
   );
   return ok(res, { establishments: withAvailability });
 }
@@ -30,34 +28,30 @@ async function list(req, res) {
 async function getOne(req, res) {
   const establishment = await EstablishmentModel.findById(req.params.id);
   if (!establishment) return fail(res, "Establecimiento no encontrado.", 404);
-  return ok(res, {
-    establishment,
-    availability: await EstablishmentModel.availabilitySummary(establishment.id),
-  });
+  return ok(res, { establishment, availability: await EstablishmentModel.availabilitySummary(establishment.id) });
 }
 
 async function update(req, res) {
-  const existing = await EstablishmentModel.findById(req.params.id);
-  if (!existing) return fail(res, "Establecimiento no encontrado.", 404);
-
-  const { name, type, address, rules } = req.body;
-  const establishment = await EstablishmentModel.update(req.params.id, { name, type, address, rules });
+  if (!(await EstablishmentModel.findById(req.params.id))) return fail(res, "Establecimiento no encontrado.", 404);
+  const { name, address, description } = req.body;
+  const establishment = await EstablishmentModel.update(req.params.id, { name, address, description });
   return ok(res, { establishment });
 }
 
-// Mapa del parqueo: espacios agrupados por fila con su estado actual
+// Mapa de espacios de TODOS los parqueos del establecimiento, agrupados por parqueo/fila.
 async function map(req, res) {
   const establishment = await EstablishmentModel.findById(req.params.id);
   if (!establishment) return fail(res, "Establecimiento no encontrado.", 404);
 
   const spaces = await SpaceModel.listByEstablishment(req.params.id);
-  const rows = {};
+  const parkings = {};
   for (const space of spaces) {
-    const rowKey = space.row_label || "General";
-    if (!rows[rowKey]) rows[rowKey] = [];
-    rows[rowKey].push({ id: space.id, code: space.code, status: space.status });
+    if (!parkings[space.parking_name]) parkings[space.parking_name] = {};
+    const rowKey = space.row_location || "General";
+    if (!parkings[space.parking_name][rowKey]) parkings[space.parking_name][rowKey] = [];
+    parkings[space.parking_name][rowKey].push({ id: space.id, code: space.code, status: space.status, type: space.type });
   }
-  return ok(res, { establishment: { id: establishment.id, name: establishment.name }, rows });
+  return ok(res, { establishment: { id: establishment.id, name: establishment.name }, parkings });
 }
 
 module.exports = { create, list, getOne, update, map };

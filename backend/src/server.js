@@ -1,14 +1,14 @@
 require("dotenv").config();
 const app = require("./app");
-const { initSchema, pool } = require("./config/db");
+const { checkConnection, pool } = require("./config/db");
 
 const PORT = process.env.PORT || 4000;
 
 async function start() {
   try {
-    // Crea las tablas si aún no existen (equivalente a lo que antes hacía
-    // better-sqlite3 de forma síncrona al arrancar).
-    await initSchema();
+    // Solo verifica que se puede conectar; el esquema ya existe en la base
+    // de datos y este backend nunca lo crea ni lo modifica.
+    await checkConnection();
     app.listen(PORT, () => {
       console.log(`Smart Parking API escuchando en http://localhost:${PORT}`);
     });

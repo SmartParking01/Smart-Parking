@@ -1,12 +1,12 @@
 const { query } = require("../config/db");
 
 const SpaceModel = {
-  async create({ establishmentId, code, rowLabel }) {
+  async create({ parkingId, code, type, rowLocation }) {
     const { rows } = await query(
-      `INSERT INTO parking_spaces (establishment_id, code, row_label)
-       VALUES ($1, $2, $3)
+      `INSERT INTO parking_spaces (parking_id, code, type, row_location)
+       VALUES ($1, $2, COALESCE($3, 'REGULAR'::space_type_t), $4)
        RETURNING *`,
-      [establishmentId, code, rowLabel || null]
+      [parkingId, code, type, rowLocation || null]
     );
     return rows[0];
   },
@@ -16,31 +16,39 @@ const SpaceModel = {
     return rows[0] || null;
   },
 
-  // Con better-sqlite3 (síncrono) esto bastaba porque no había condiciones de
-  // carrera dentro del mismo proceso. Con Postgres, la operación realmente
-  // atómica para reservar/ocupar un espacio es compareAndSetStatus (UPDATE
-  // condicionado), no esta lectura. Se mantiene por compatibilidad con el
-  // resto del código, pero para bloqueo real de fila usar
-  // "SELECT ... FOR UPDATE" dentro de una transacción si se necesita.
-  async findByIdForUpdate(id) {
-    return this.findById(id);
+  async listByParking(parkingId) {
+    const { rows } = await query(
+      "SELECT * FROM parking_spaces WHERE parking_id = $1 ORDER BY row_location, code",
+      [parkingId]
+    );
+    return rows;
   },
 
+  // Mapa completo de un establecimiento (todos sus parqueos y espacios).
   async listByEstablishment(establishmentId) {
     const { rows } = await query(
-      "SELECT * FROM parking_spaces WHERE establishment_id = $1 ORDER BY row_label, code",
+      `SELECT sp.*, p.name AS parking_name
+       FROM parking_spaces sp
+       JOIN parkings p ON p.id = sp.parking_id
+       WHERE p.establishment_id = $1
+       ORDER BY p.name, sp.row_location, sp.code`,
       [establishmentId]
     );
     return rows;
   },
 
   async updateStatus(id, status) {
-    await query("UPDATE parking_spaces SET status = $1 WHERE id = $2", [status, id]);
-    return this.findById(id);
+    const { rows } = await query(
+      "UPDATE parking_spaces SET status = $1 WHERE id = $2 RETURNING *",
+      [status, id]
+    );
+    return rows[0] || null;
   },
 
-  // Cambia el estado solo si el estado actual coincide con el esperado.
-  // Devuelve true si el cambio se aplicó (evita reservas/asignaciones dobles).
+  // Cambia el estado solo si coincide con el esperado (para asignación manual
+  // sin reserva, que no está protegida por el EXCLUDE constraint). Las
+  // reservas normales NO necesitan esto: el trigger + el EXCLUDE constraint
+  // ya garantizan la atomicidad.
   async compareAndSetStatus(id, expectedStatus, newStatus) {
     const result = await query(
       "UPDATE parking_spaces SET status = $1 WHERE id = $2 AND status = $3",
@@ -50,8 +58,7 @@ const SpaceModel = {
   },
 
   async setBlocked(id, blocked) {
-    const status = blocked ? "BLOCKED" : "AVAILABLE";
-    return this.updateStatus(id, status);
+    return this.updateStatus(id, blocked ? "BLOCKED" : "AVAILABLE");
   },
 
   async delete(id) {

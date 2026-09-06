@@ -1,7 +1,6 @@
 const { Pool } = require("pg");
 
-// Soporta DATABASE_URL (típico en Render/Railway/Heroku) o variables sueltas
-// (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE), típicas en instalación local.
+// Soporta DATABASE_URL (Supabase, Render, etc.) o variables sueltas PG*.
 const useConnectionString = Boolean(process.env.DATABASE_URL);
 
 const pool = useConnectionString
@@ -19,128 +18,40 @@ const pool = useConnectionString
     });
 
 pool.on("error", (err) => {
-  // Errores en clientes ociosos del pool (no deben tumbar el proceso)
   console.error("Error inesperado en el pool de PostgreSQL:", err);
 });
 
-// Atajo para ejecutar consultas sin manejar clientes manualmente.
+// IMPORTANTE: este backend NO crea ni modifica el esquema. Las tablas,
+// tipos ENUM, constraints, triggers y vistas ya existen en la base de datos
+// (creados por 01_schema.sql) y son la fuente de verdad. El backend solo
+// hace SELECT/INSERT/UPDATE sobre lo que ya está ahí.
+
 function query(text, params) {
   return pool.query(text, params);
 }
 
-// ---------------------------------------------------------------------------
-// Esquema de la base de datos (equivalente al que antes creaba better-sqlite3)
-// ---------------------------------------------------------------------------
-// Nota: users <-> establishments tiene una referencia circular
-// (establishments.created_by -> users.id, users.establishment_id ->
-// establishments.id). En SQLite esto no daba problema porque no valida los
-// FK al crear la tabla; en Postgres la tabla referenciada debe existir antes,
-// así que las tablas se crean primero sin esa relación y las llaves foráneas
-// circulares se agregan después con ALTER TABLE dentro de un bloque
-// idempotente (no falla si ya existen, para poder llamarse en cada arranque).
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS establishments (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'OTHER',
-  address TEXT,
-  rules TEXT,
-  created_by INTEGER,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  phone TEXT,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('USER', 'SECURITY', 'ADMIN')) DEFAULT 'USER',
-  establishment_id INTEGER,
-  reset_token TEXT,
-  reset_token_expires TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Autoreparación: si las tablas ya existían de un intento anterior (por eso
--- el CREATE TABLE IF NOT EXISTS de arriba no hizo nada) pero les faltaba
--- alguna columna, se agrega aquí sin tocar el resto de los datos.
-ALTER TABLE establishments ADD COLUMN IF NOT EXISTS created_by INTEGER;
-ALTER TABLE establishments ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'OTHER';
-ALTER TABLE establishments ADD COLUMN IF NOT EXISTS address TEXT;
-ALTER TABLE establishments ADD COLUMN IF NOT EXISTS rules TEXT;
-ALTER TABLE establishments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-
-ALTER TABLE users ADD COLUMN IF NOT EXISTS establishment_id INTEGER;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_establishments_created_by') THEN
-    ALTER TABLE establishments
-      ADD CONSTRAINT fk_establishments_created_by
-      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_establishment') THEN
-    ALTER TABLE users
-      ADD CONSTRAINT fk_users_establishment
-      FOREIGN KEY (establishment_id) REFERENCES establishments(id) ON DELETE SET NULL;
-  END IF;
-END
-$$;
-
-CREATE TABLE IF NOT EXISTS parking_spaces (
-  id SERIAL PRIMARY KEY,
-  establishment_id INTEGER NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
-  code TEXT NOT NULL,
-  row_label TEXT,
-  status TEXT NOT NULL CHECK (status IN ('AVAILABLE','RESERVED','OCCUPIED','BLOCKED')) DEFAULT 'AVAILABLE',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (establishment_id, code)
-);
-
-CREATE TABLE IF NOT EXISTS reservations (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  establishment_id INTEGER NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
-  space_id INTEGER NOT NULL REFERENCES parking_spaces(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('ACTIVE','USED','CANCELLED','EXPIRED')) DEFAULT 'ACTIVE',
-  qr_token TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at TIMESTAMPTZ NOT NULL,
-  used_at TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS entries (
-  id SERIAL PRIMARY KEY,
-  reservation_id INTEGER REFERENCES reservations(id) ON DELETE SET NULL,
-  space_id INTEGER NOT NULL REFERENCES parking_spaces(id) ON DELETE CASCADE,
-  establishment_id INTEGER NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
-  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  guard_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  entry_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  exit_time TIMESTAMPTZ,
-  source TEXT NOT NULL CHECK (source IN ('RESERVATION','WALK_IN')) DEFAULT 'WALK_IN'
-);
-
-CREATE INDEX IF NOT EXISTS idx_spaces_establishment ON parking_spaces(establishment_id);
-CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations(user_id);
-CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status);
-CREATE INDEX IF NOT EXISTS idx_entries_establishment ON entries(establishment_id);
-`;
-
-let schemaReady = null;
-
-// Crea las tablas si no existen. Es seguro llamarla varias veces (idempotente).
-function initSchema() {
-  if (!schemaReady) {
-    schemaReady = pool.query(SCHEMA_SQL);
+// Para operaciones que necesitan una transacción real (BEGIN/COMMIT/ROLLBACK),
+// por ejemplo asignar un espacio manualmente sin pisar una asignación
+// concurrente.
+async function withTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
-  return schemaReady;
 }
 
-module.exports = { pool, query, initSchema };
+// Prueba simple de conectividad al arrancar (no crea nada, solo confirma
+// que la conexión y credenciales funcionan).
+async function checkConnection() {
+  await pool.query("SELECT 1");
+}
+
+module.exports = { pool, query, withTransaction, checkConnection };

@@ -12,7 +12,7 @@ router.post("/:id/cancel", authenticate, authorize("USER"), asyncHandler(control
 router.get(
   "/establishment/:establishmentId",
   authenticate,
-  authorize("ADMIN", "SECURITY"),
+  authorize("ADMIN", "ATTENDANT"),
   asyncHandler(controller.listForEstablishment)
 );
 
