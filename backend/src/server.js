@@ -10,7 +10,7 @@ async function start() {
     // de datos y este backend nunca lo crea ni lo modifica.
     await checkConnection();
     app.listen(PORT, () => {
-      console.log(`Smart Parking API escuchando en http://localhost:${PORT}`);
+      console.log(`Smart Parking API escuchando en http://localhost:4000/api`);
     });
   } catch (err) {
     console.error("No se pudo iniciar el servidor (revisa la conexión a PostgreSQL):", err);

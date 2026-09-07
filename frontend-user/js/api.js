@@ -1,5 +1,5 @@
 // Cambia esta URL si el backend corre en otra dirección/puerto.
-const API_BASE_URL = "http://localhost:4000";
+const API_BASE_URL = "http://localhost:4000/api";
 
 const Api = {
   getToken() {

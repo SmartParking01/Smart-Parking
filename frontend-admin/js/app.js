@@ -58,7 +58,7 @@ function renderLoginScreen() {
 function afterLogin() {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("shell").style.display = "flex";
-  whoAmI.textContent = `${state.user.name} · ${state.user.role}`;
+  whoAmI.textContent = `${state.user.first_name} ${state.user.last_name} · ${state.user.role}`;
   sideNav.querySelectorAll(".admin-only").forEach((btn) => {
     btn.classList.toggle("hidden", state.user.role !== "ADMIN");
   });
@@ -121,7 +121,7 @@ document.getElementById("logout-btn").onclick = () => {
 };
 
 function currentEstablishmentId() {
-  return state.user.establishment_id;
+  return state.user.establishmentId;
 }
 
 // ---------------------------------------------------------------------------
