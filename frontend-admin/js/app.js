@@ -42,7 +42,7 @@ function renderLoginScreen() {
         email: document.getElementById("l-email").value.trim(),
         password: document.getElementById("l-password").value,
       });
-      if (!["ADMIN", "SECURITY"].includes(data.user.role)) {
+      if (!["ADMIN", "ATTENDANT"].includes(data.user.role)) {
         errEl.textContent = "Esta cuenta no tiene acceso al panel administrativo.";
         return;
       }
@@ -124,6 +124,18 @@ function currentEstablishmentId() {
   return state.user.establishmentId;
 }
 
+// Consigue el parking (parqueo físico) del establecimiento actual.
+// El esquema nuevo es establishment -> parkings -> parking_spaces,
+// así que para pedir/crear espacios primero necesitamos el id del parking.
+async function currentParkingId() {
+  const estId = currentEstablishmentId();
+  const { parkings } = await Api.get(`/parkings/establishment/${estId}`);
+  if (!parkings || parkings.length === 0) {
+    throw new Error("Este establecimiento todavía no tiene ningún parqueo (parking) creado.");
+  }
+  return parkings[0].id; // usamos el primer parqueo del establecimiento
+}
+
 // ---------------------------------------------------------------------------
 // DASHBOARD
 // ---------------------------------------------------------------------------
@@ -166,8 +178,8 @@ async function renderDashboard() {
 // ENTRADAS: escanear/pegar QR + asignación manual (walk-in)
 // ---------------------------------------------------------------------------
 async function renderEntries() {
-  const estId = currentEstablishmentId();
-  const { spaces } = await Api.get(`/spaces/establishment/${estId}`);
+  const parkingId = await currentParkingId();
+  const { spaces } = await Api.get(`/spaces/parking/${parkingId}`);
   const available = spaces.filter((s) => s.status === "AVAILABLE");
 
   viewEl.innerHTML = `
@@ -348,8 +360,8 @@ async function renderReservations() {
 // GESTIÓN DE ESPACIOS (solo ADMIN)
 // ---------------------------------------------------------------------------
 async function renderSpaces() {
-  const estId = currentEstablishmentId();
-  const { spaces } = await Api.get(`/spaces/establishment/${estId}`);
+  const parkingId = await currentParkingId();
+  const { spaces } = await Api.get(`/spaces/parking/${parkingId}`);
 
   viewEl.innerHTML = `
     <div class="card">
@@ -382,9 +394,9 @@ async function renderSpaces() {
     errEl.textContent = "";
     try {
       await Api.post("/spaces", {
-        establishmentId: estId,
+        parkingId: parkingId,
         code: document.getElementById("sp-code").value.trim().toUpperCase(),
-        rowLabel: document.getElementById("sp-row").value.trim(),
+        rowLocation: document.getElementById("sp-row").value.trim(),
       });
       renderSpaces();
     } catch (err) {
@@ -470,7 +482,7 @@ async function renderEstablishments() {
 }
 
 // ---------------------------------------------------------------------------
-// PERSONAL (solo ADMIN) - crear cuentas SECURITY/ADMIN
+// PERSONAL (solo ADMIN) - crear cuentas ATTENDANT/ADMIN
 // ---------------------------------------------------------------------------
 async function renderStaff() {
   const estId = currentEstablishmentId();
@@ -485,7 +497,7 @@ async function renderStaff() {
         <div class="input-group"><label>Teléfono</label><input id="st-phone" /></div>
         <div class="input-group">
           <label>Rol</label>
-          <select id="st-role"><option value="SECURITY">Guarda de seguridad</option><option value="ADMIN">Administrador</option></select>
+          <select id="st-role"><option value="ATTENDANT">Guarda de seguridad</option><option value="ADMIN">Administrador</option></select>
         </div>
       </div>
       <div class="input-group"><label>Contraseña temporal</label><input id="st-password" type="password" /></div>

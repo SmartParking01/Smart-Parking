@@ -38,20 +38,55 @@ async function update(req, res) {
   return ok(res, { establishment });
 }
 
-// Mapa de espacios de TODOS los parqueos del establecimiento, agrupados por parqueo/fila.
-async function map(req, res) {
-  const establishment = await EstablishmentModel.findById(req.params.id);
-  if (!establishment) return fail(res, "Establecimiento no encontrado.", 404);
 
-  const spaces = await SpaceModel.listByEstablishment(req.params.id);
-  const parkings = {};
-  for (const space of spaces) {
-    if (!parkings[space.parking_name]) parkings[space.parking_name] = {};
-    const rowKey = space.row_location || "General";
-    if (!parkings[space.parking_name][rowKey]) parkings[space.parking_name][rowKey] = [];
-    parkings[space.parking_name][rowKey].push({ id: space.id, code: space.code, status: space.status, type: space.type });
+
+async function renderParkingMap() {
+  const estId = currentEstablishmentId();
+  const { parkings } = await Api.get(`/establishments/${estId}/map`);
+  const isAdmin = state.user.role === "ADMIN";
+
+  let html = `<div class="card">
+    <div style="display:flex; gap:16px; font-size:12px; color:var(--muted); margin-bottom:10px;">
+      <span><span class="badge AVAILABLE">&nbsp;</span> Disponible</span>
+      <span><span class="badge RESERVED">&nbsp;</span> Reservado</span>
+      <span><span class="badge OCCUPIED">&nbsp;</span> Ocupado</span>
+      <span><span class="badge BLOCKED">&nbsp;</span> Bloqueado</span>
+    </div>`;
+
+  const parkingNames = Object.keys(parkings);
+  if (parkingNames.length === 0) {
+    html += `<p class="muted">Este establecimiento todavía no tiene espacios registrados.</p>`;
   }
-  return ok(res, { establishment: { id: establishment.id, name: establishment.name }, parkings });
-}
 
-module.exports = { create, list, getOne, update, map };
+  for (const parkingName of parkingNames) {
+    html += `<h3 style="margin-bottom:4px;">${escapeHtml(parkingName)}</h3>`;
+    const rows = parkings[parkingName];
+    for (const [rowLabel, spaces] of Object.entries(rows)) {
+      html += `<div class="row-label">${escapeHtml(rowLabel)}</div><div class="space-grid">`;
+      for (const s of spaces) {
+        html += `<div class="space-cell ${s.status}" title="${escapeHtml(s.code)} - ${s.status}"
+          ${isAdmin ? `data-id="${s.id}" data-status="${s.status}" style="cursor:pointer;"` : ""}>${escapeHtml(s.code)}</div>`;
+      }
+      html += `</div>`;
+    }
+  }
+  html += `</div>`;
+  if (isAdmin) html += `<p class="muted">Como administrador, haz clic en un espacio disponible o bloqueado para alternar su bloqueo.</p><p class="error-text" id="map-error"></p>`;
+
+  viewEl.innerHTML = html;
+
+  if (isAdmin) {
+    viewEl.querySelectorAll(".space-cell[data-id]").forEach((cell) => {
+      cell.onclick = async () => {
+        const status = cell.dataset.status;
+        if (status !== "AVAILABLE" && status !== "BLOCKED") return;
+        try {
+          await Api.patch(`/spaces/${cell.dataset.id}/blocked`, { blocked: status !== "BLOCKED" });
+          renderParkingMap();
+        } catch (err) {
+          document.getElementById("map-error").textContent = err.message;
+        }
+      };
+    });
+  }
+}
