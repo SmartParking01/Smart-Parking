@@ -191,9 +191,9 @@ async function renderDashboard() {
 
   viewEl.innerHTML = `
     <div class="grid-3">
-      <div class="card"><div class="stat-label">Disponibles</div><div class="stat-value" style="color:var(--available)">${current.AVAILABLE}</div></div>
+      <div class="card stat-emphasis"><div class="stat-label">Disponibles</div><div class="stat-value" style="color:var(--brass-tint)">${current.AVAILABLE}</div></div>
       <div class="card"><div class="stat-label">Reservados</div><div class="stat-value" style="color:var(--reserved)">${current.RESERVED}</div></div>
-      <div class="card"><div class="stat-label">Ocupados</div><div class="stat-value" style="color:var(--primary)">${current.OCCUPIED}</div></div>
+      <div class="card"><div class="stat-label">Ocupados</div><div class="stat-value" style="color:var(--occupied)">${current.OCCUPIED}</div></div>
     </div>
     <div class="card">
       <div class="stat-label">Ocupación total</div>
