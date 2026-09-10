@@ -88,7 +88,7 @@ function renderLogin() {
   setTitle("Smart Parking");
   view.innerHTML = `
     <div class="card hero center" style="margin-top:8px;">
-      <h2>🅿️ Smart Parking</h2>
+      <h2>Smart Parking</h2>
       <p>Encuentra y reserva tu espacio en segundos</p>
     </div>
     <div class="card">
@@ -198,13 +198,13 @@ function availabilityLevel(av) {
   return "low";
 }
 
-function makePinIcon(selected) {
+function makePinIcon(selected, letter) {
   return L.divIcon({
     className: "",
-    html: `<div class="map-pin-icon${selected ? " selected" : ""}"><span>🅿️</span></div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 28],
-    popupAnchor: [0, -26],
+    html: `<div class="map-pin-icon${selected ? " selected" : ""}"><span>${escapeHtml((letter || "P").charAt(0).toUpperCase())}</span></div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 24],
+    popupAnchor: [0, -22],
   });
 }
 
@@ -215,7 +215,7 @@ async function renderHome() {
   state.establishments = establishments;
 
   if (establishments.length === 0) {
-    view.innerHTML = `<div class="card empty-state"><span class="emoji">🅿️</span><p>No hay establecimientos registrados todavía.</p></div>`;
+    view.innerHTML = `<div class="card empty-state"><span class="mark">Sin establecimientos</span><p>No hay establecimientos registrados todavía.</p></div>`;
     return;
   }
 
@@ -232,7 +232,7 @@ async function renderHome() {
       const level = availabilityLevel(e.availability);
       return `
       <div class="establishment-item" data-id="${e.id}">
-        <div class="establishment-icon">🅿️</div>
+        <div class="establishment-icon">${escapeHtml((e.name || "P").charAt(0).toUpperCase())}</div>
         <div class="establishment-info">
           <h3>${escapeHtml(e.name)}</h3>
           <p style="margin:0;">${escapeHtml(e.address || "Dirección no especificada")}</p>
@@ -265,7 +265,7 @@ async function renderHome() {
 
     const markers = [];
     withCoords.forEach((e) => {
-      const marker = L.marker([e.latitude, e.longitude], { icon: makePinIcon(false) }).addTo(map);
+      const marker = L.marker([e.latitude, e.longitude], { icon: makePinIcon(false, e.name) }).addTo(map);
       marker.bindPopup(
         `<strong>${escapeHtml(e.name)}</strong><br/>${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres`
       );
@@ -305,7 +305,7 @@ async function renderEstablishment() {
 
   const parkingNames = Object.keys(parkings);
   if (parkingNames.length === 0) {
-    html += `<div class="card empty-state"><span class="emoji">🚧</span><p>Este establecimiento todavía no tiene espacios configurados.</p></div>`;
+    html += `<div class="card empty-state"><span class="mark">Sin espacios</span><p>Este establecimiento todavía no tiene espacios configurados.</p></div>`;
     view.innerHTML = html;
     return;
   }
@@ -392,7 +392,7 @@ async function renderHistory() {
   const { reservations } = await Api.get("/reservations/mine");
 
   if (reservations.length === 0) {
-    view.innerHTML = `<div class="card empty-state"><span class="emoji">🕑</span><p>Todavía no tienes reservas.</p></div>`;
+    view.innerHTML = `<div class="card empty-state"><span class="mark">Sin reservas</span><p>Todavía no tienes reservas.</p></div>`;
     return;
   }
 

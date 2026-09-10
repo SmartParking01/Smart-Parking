@@ -19,6 +19,14 @@ function fullName(obj, prefix = "") {
   return name || null;
 }
 
+const ROLE_LABEL = { ADMIN: "Administración", ATTENDANT: "Guarda de seguridad" };
+function roleLabel(role) {
+  return ROLE_LABEL[role] || role;
+}
+function whoAmIText() {
+  return `${fullName(state.user) || state.user.email}, ${roleLabel(state.user.role)}`;
+}
+
 function estId() {
   return state.user.establishmentId;
 }
@@ -59,7 +67,7 @@ function renderLoginScreen() {
   el.style.display = "flex";
   el.innerHTML = `
     <div class="login-card">
-      <h1 style="margin-top:0;">🅿️ Smart Parking</h1>
+      <h1 style="margin-top:0;">Smart Parking</h1>
       <p class="muted">Panel administrativo — Personal y administradores</p>
       <div class="input-group"><label>Correo electrónico</label><input id="l-email" type="email" /></div>
       <div class="input-group"><label>Contraseña</label><input id="l-password" type="password" /></div>
@@ -93,7 +101,7 @@ function renderLoginScreen() {
 function afterLogin() {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("shell").style.display = "flex";
-  whoAmI.textContent = `${fullName(state.user) || state.user.email} · ${state.user.role}`;
+  whoAmI.textContent = whoAmIText();
   sideNav.querySelectorAll(".admin-only").forEach((btn) => {
     btn.classList.toggle("hidden", state.user.role !== "ADMIN");
   });
@@ -130,7 +138,7 @@ async function router() {
   }
   document.getElementById("login-screen") && (document.getElementById("login-screen").style.display = "none");
   document.getElementById("shell").style.display = "flex";
-  whoAmI.textContent = `${fullName(state.user) || state.user.email} · ${state.user.role}`;
+  whoAmI.textContent = whoAmIText();
   sideNav.querySelectorAll(".admin-only").forEach((btn) => btn.classList.toggle("hidden", state.user.role !== "ADMIN"));
 
   const route = window.location.hash || "#/dashboard";
@@ -545,7 +553,7 @@ async function renderEstablishments() {
           <td>${escapeHtml(e.name)}</td>
           <td>${escapeHtml(e.company_name)}</td>
           <td>${e.availability.TOTAL}</td>
-          <td>${e.latitude != null ? "📍 Ubicado" : '<span class="muted">Sin coordenadas</span>'}</td>
+          <td>${e.latitude != null ? "Ubicado" : '<span class="muted">Sin coordenadas</span>'}</td>
         </tr>`).join("")}
       </tbody></table>
     </div>
