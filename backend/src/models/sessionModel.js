@@ -38,9 +38,15 @@ const SessionModel = {
 
   async listOpenByEstablishment(establishmentId) {
     const { rows } = await query(
-      `SELECT * FROM v_vehicles_inside
-       WHERE parking_id IN (SELECT id FROM parkings WHERE establishment_id = $1)
-       ORDER BY entry_time DESC`,
+      `SELECT s.id AS session_id, s.space_id, sp.code AS space_code, p.id AS parking_id, p.name AS parking_name,
+              s.user_id, u.first_name AS user_first_name, u.last_name AS user_last_name, u.email AS user_email,
+              s.attendant_id, s.entry_time, s.entry_method
+       FROM parking_sessions s
+       JOIN parking_spaces sp ON sp.id = s.space_id
+       JOIN parkings p ON p.id = sp.parking_id
+       LEFT JOIN users u ON u.id = s.user_id
+       WHERE s.status = 'OPEN' AND p.establishment_id = $1
+       ORDER BY s.entry_time DESC`,
       [establishmentId]
     );
     return rows;
@@ -48,9 +54,17 @@ const SessionModel = {
 
   async listByEstablishment(establishmentId) {
     const { rows } = await query(
-      `SELECT * FROM v_usage_history
-       WHERE parking_id IN (SELECT id FROM parkings WHERE establishment_id = $1)
-       ORDER BY entry_time DESC`,
+      `SELECT s.id AS session_id, s.user_id, u.first_name AS user_first_name, u.last_name AS user_last_name,
+              u.email AS user_email, p.id AS parking_id, p.name AS parking_name, sp.code AS space_code,
+              s.reservation_id, a.email AS attendant_email, s.entry_method, s.exit_method,
+              s.entry_time, s.exit_time, s.status AS session_status
+       FROM parking_sessions s
+       JOIN parking_spaces sp ON sp.id = s.space_id
+       JOIN parkings p ON p.id = sp.parking_id
+       LEFT JOIN users u ON u.id = s.user_id
+       LEFT JOIN users a ON a.id = s.attendant_id
+       WHERE p.establishment_id = $1
+       ORDER BY s.entry_time DESC`,
       [establishmentId]
     );
     return rows;

@@ -4,24 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Smart Parking · Panel Administrativo</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <div id="shell">
     <aside id="sidebar">
-      <div class="brand">🅿️ Smart Parking<span>Panel de control</span></div>
+      <div class="brand">
+        <div class="brand-row">
+          <img id="app-logo" src="assets/logo.png" alt="Smart Parking" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='inline-flex';" />
+          <span id="logo-fallback" class="logo-fallback">🅿️</span>
+          <span class="brand-name">Smart Parking</span>
+        </div>
+        <span class="brand-sub">Panel de control</span>
+      </div>
       <nav id="side-nav">
-        <button data-route="#/dashboard" class="side-btn">📊 Panel general</button>
-        <button data-route="#/entries" class="side-btn">🚗 Entradas</button>
-        <button data-route="#/exits" class="side-btn">🚪 Salidas</button>
-        <button data-route="#/parking" class="side-btn">🗺️ Parqueo</button>
-        <button data-route="#/reservations" class="side-btn">📅 Reservas</button>
-        <button data-route="#/spaces" class="side-btn admin-only">🧱 Espacios</button>
-        <button data-route="#/establishments" class="side-btn admin-only">🏢 Establecimientos</button>
-        <button data-route="#/staff" class="side-btn admin-only">👥 Personal</button>
-        <button data-route="#/stats" class="side-btn admin-only">📈 Estadísticas</button>
+        <button data-route="#/dashboard" class="side-btn">📊 <span>Panel general</span></button>
+        <button data-route="#/entries" class="side-btn">🚗 <span>Entradas</span></button>
+        <button data-route="#/exits" class="side-btn">🚪 <span>Salidas</span></button>
+        <button data-route="#/parking" class="side-btn">🗺️ <span>Parqueo</span></button>
+        <button data-route="#/reservations" class="side-btn">📅 <span>Reservas</span></button>
+        <button data-route="#/spaces" class="side-btn admin-only">🧱 <span>Espacios</span></button>
+        <button data-route="#/establishments" class="side-btn admin-only">🏢 <span>Establecimientos</span></button>
+        <button data-route="#/staff" class="side-btn admin-only">👥 <span>Personal</span></button>
+        <button data-route="#/stats" class="side-btn admin-only">📈 <span>Estadísticas</span></button>
       </nav>
-      <button id="logout-btn" class="side-btn logout">🚪 Cerrar sesión</button>
+      <button id="logout-btn" class="side-btn logout">🚪 <span>Cerrar sesión</span></button>
     </aside>
 
     <main id="content">
@@ -33,6 +47,7 @@
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="js/api.js"></script>
   <script src="js/app.js"></script>
 </body>

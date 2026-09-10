@@ -1,12 +1,12 @@
 const { query } = require("../config/db");
 
 const EstablishmentModel = {
-  async create({ companyId, name, address, description }) {
+  async create({ companyId, name, address, description, latitude, longitude }) {
     const { rows } = await query(
-      `INSERT INTO establishments (company_id, name, address, description)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO establishments (company_id, name, address, description, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [companyId, name, address || null, description || null]
+      [companyId, name, address || null, description || null, latitude ?? null, longitude ?? null]
     );
     return rows[0];
   },
@@ -33,11 +33,12 @@ const EstablishmentModel = {
     return rows;
   },
 
-  async update(id, { name, address, description }) {
+  async update(id, { name, address, description, latitude, longitude }) {
     await query(
       `UPDATE establishments SET name = COALESCE($1, name), address = COALESCE($2, address),
-       description = COALESCE($3, description) WHERE id = $4`,
-      [name, address, description, id]
+       description = COALESCE($3, description), latitude = COALESCE($4, latitude),
+       longitude = COALESCE($5, longitude) WHERE id = $6`,
+      [name, address, description, latitude, longitude, id]
     );
     return this.findById(id);
   },

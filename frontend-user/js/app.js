@@ -9,6 +9,7 @@ let state = {
   currentEstablishmentId: null,
   currentSpaces: [],
   selectedSpaceId: null,
+  geoMap: null, // instancia de Leaflet
 };
 
 // ---------------------------------------------------------------------------
@@ -68,7 +69,7 @@ bottomNav.addEventListener("click", (e) => {
 
 function escapeHtml(str) {
   const div = document.createElement("div");
-  div.textContent = str;
+  div.textContent = str ?? "";
   return div.innerHTML;
 }
 
@@ -76,13 +77,17 @@ function setTitle(title) {
   headerTitle.textContent = title;
 }
 
+function showLoading() {
+  view.innerHTML = `<div class="spinner"></div>`;
+}
+
 // ---------------------------------------------------------------------------
-// LOGIN
+// LOGIN / REGISTRO / RECUPERAR
 // ---------------------------------------------------------------------------
 function renderLogin() {
   setTitle("Smart Parking");
   view.innerHTML = `
-    <div class="card center" style="margin-top:30px;">
+    <div class="card hero center" style="margin-top:8px;">
       <h2>🅿️ Smart Parking</h2>
       <p>Encuentra y reserva tu espacio en segundos</p>
     </div>
@@ -183,64 +188,138 @@ function renderForgot() {
 }
 
 // ---------------------------------------------------------------------------
-// HOME - lista de establecimientos con disponibilidad
+// HOME - mapa geográfico (Leaflet) + lista de establecimientos
 // ---------------------------------------------------------------------------
+function availabilityLevel(av) {
+  if (av.TOTAL === 0) return "low";
+  const ratio = av.AVAILABLE / av.TOTAL;
+  if (ratio >= 0.5) return "high";
+  if (ratio >= 0.2) return "mid";
+  return "low";
+}
+
+function makePinIcon(selected) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="map-pin-icon${selected ? " selected" : ""}"><span>🅿️</span></div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 28],
+    popupAnchor: [0, -26],
+  });
+}
+
 async function renderHome() {
   setTitle("Parqueos disponibles");
-  view.innerHTML = `<p class="center">Cargando establecimientos...</p>`;
+  showLoading();
   const { establishments } = await Api.get("/establishments");
   state.establishments = establishments;
 
   if (establishments.length === 0) {
-    view.innerHTML = `<div class="card"><p>No hay establecimientos registrados todavía.</p></div>`;
+    view.innerHTML = `<div class="card empty-state"><span class="emoji">🅿️</span><p>No hay establecimientos registrados todavía.</p></div>`;
     return;
   }
 
-  view.innerHTML = establishments
-    .map(
-      (e) => `
-      <div class="card" data-id="${e.id}">
-        <h2>${escapeHtml(e.name)}</h2>
-        <p>${escapeHtml(e.address || "Dirección no especificada")}</p>
-        <p><strong>${e.availability.AVAILABLE}</strong> de ${e.availability.TOTAL} espacios disponibles</p>
-        <button class="btn view-btn">Ver espacios</button>
-      </div>`
-    )
+  const withCoords = establishments.filter((e) => e.latitude != null && e.longitude != null);
+
+  view.innerHTML = `
+    ${withCoords.length > 0 ? '<div id="geo-map"></div>' : ""}
+    <div class="card" id="establishment-list"></div>
+  `;
+
+  const listEl = document.getElementById("establishment-list");
+  listEl.innerHTML = establishments
+    .map((e) => {
+      const level = availabilityLevel(e.availability);
+      return `
+      <div class="establishment-item" data-id="${e.id}">
+        <div class="establishment-icon">🅿️</div>
+        <div class="establishment-info">
+          <h3>${escapeHtml(e.name)}</h3>
+          <p style="margin:0;">${escapeHtml(e.address || "Dirección no especificada")}</p>
+          <span class="availability-pill ${level}">${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres</span>
+        </div>
+      </div>`;
+    })
     .join("");
 
-  view.querySelectorAll(".card").forEach((card) => {
-    card.querySelector(".view-btn").onclick = () => {
-      state.currentEstablishmentId = card.dataset.id;
+  listEl.querySelectorAll(".establishment-item").forEach((item) => {
+    item.onclick = () => {
+      state.currentEstablishmentId = item.dataset.id;
       navigate("#/establishment");
     };
   });
+
+  // Mapa geográfico: un pin por cada establecimiento con coordenadas.
+  if (withCoords.length > 0) {
+    const mapEl = document.getElementById("geo-map");
+    const map = L.map(mapEl, { zoomControl: true }).setView(
+      [withCoords[0].latitude, withCoords[0].longitude],
+      13
+    );
+    state.geoMap = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap",
+      maxZoom: 19,
+    }).addTo(map);
+
+    const markers = [];
+    withCoords.forEach((e) => {
+      const marker = L.marker([e.latitude, e.longitude], { icon: makePinIcon(false) }).addTo(map);
+      marker.bindPopup(
+        `<strong>${escapeHtml(e.name)}</strong><br/>${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres`
+      );
+      marker.on("click", () => {
+        state.currentEstablishmentId = e.id;
+        navigate("#/establishment");
+      });
+      markers.push(marker);
+    });
+
+    if (markers.length > 1) {
+      const group = L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.25));
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
-// ESTABLECIMIENTO - mapa visual de espacios
+// ESTABLECIMIENTO - mapa visual de espacios (cuadrícula por parqueo/fila)
 // ---------------------------------------------------------------------------
 async function renderEstablishment() {
   setTitle("Mapa del parqueo");
-  view.innerHTML = `<p class="center">Cargando espacios...</p>`;
+  showLoading();
   const id = state.currentEstablishmentId;
-  const { rows, establishment } = await Api.get(`/establishments/${id}/map`);
+  const { parkings, establishment } = await Api.get(`/establishments/${id}/map`);
   state.selectedSpaceId = null;
 
   let html = `<div class="card"><h2>${escapeHtml(establishment.name)}</h2>
     <p>Selecciona un espacio disponible para reservarlo.</p>
-    <div style="display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px;">
-      <span><span class="badge AVAILABLE">&nbsp;</span> Libre</span>
-      <span><span class="badge RESERVED">&nbsp;</span> Reservado</span>
-      <span><span class="badge OCCUPIED">&nbsp;</span> Ocupado</span>
-      <span><span class="badge BLOCKED">&nbsp;</span> Bloqueado</span>
+    <div class="legend-row">
+      <span><span class="dot AVAILABLE"></span>Libre</span>
+      <span><span class="dot RESERVED"></span>Reservado</span>
+      <span><span class="dot OCCUPIED"></span>Ocupado</span>
+      <span><span class="dot BLOCKED"></span>Bloqueado</span>
     </div>
   </div>`;
 
+  const parkingNames = Object.keys(parkings);
+  if (parkingNames.length === 0) {
+    html += `<div class="card empty-state"><span class="emoji">🚧</span><p>Este establecimiento todavía no tiene espacios configurados.</p></div>`;
+    view.innerHTML = html;
+    return;
+  }
+
   html += `<div class="card">`;
-  for (const [rowLabel, spaces] of Object.entries(rows)) {
-    html += `<div class="row-label">${escapeHtml(rowLabel)}</div><div class="space-grid">`;
-    for (const s of spaces) {
-      html += `<div class="space-cell ${s.status}" data-id="${s.id}" data-status="${s.status}">${escapeHtml(s.code)}</div>`;
+  for (const parkingName of parkingNames) {
+    html += `<div class="parking-block"><div class="parking-block-title">${escapeHtml(parkingName)}</div>`;
+    const rows = parkings[parkingName];
+    for (const [rowLabel, spaces] of Object.entries(rows)) {
+      html += `<div class="row-label">${escapeHtml(rowLabel)}</div><div class="space-grid">`;
+      for (const s of spaces) {
+        html += `<div class="space-cell ${s.status}" data-id="${s.id}" data-status="${s.status}">${escapeHtml(s.code)}</div>`;
+      }
+      html += `</div>`;
     }
     html += `</div>`;
   }
@@ -280,10 +359,7 @@ async function renderReserveConfirm() {
   document.getElementById("confirm-btn").onclick = async () => {
     const errEl = document.getElementById("reserve-error");
     try {
-      const data = await Api.post("/reservations", {
-        establishmentId: state.currentEstablishmentId,
-        spaceId: state.selectedSpaceId,
-      });
+      const data = await Api.post("/reservations", { spaceId: state.selectedSpaceId });
       state.lastReservationId = data.reservation.id;
       state.lastQrImage = data.qr.image;
       navigate("#/qr");
@@ -308,15 +384,15 @@ async function renderQr() {
 }
 
 // ---------------------------------------------------------------------------
-// HISTORIAL - reservas y entradas pasadas
+// HISTORIAL - reservas pasadas
 // ---------------------------------------------------------------------------
 async function renderHistory() {
   setTitle("Historial");
-  view.innerHTML = `<p class="center">Cargando historial...</p>`;
+  showLoading();
   const { reservations } = await Api.get("/reservations/mine");
 
   if (reservations.length === 0) {
-    view.innerHTML = `<div class="card"><p>Todavía no tienes reservas.</p></div>`;
+    view.innerHTML = `<div class="card empty-state"><span class="emoji">🕑</span><p>Todavía no tienes reservas.</p></div>`;
     return;
   }
 
@@ -326,7 +402,7 @@ async function renderHistory() {
         (r) => `
       <div class="list-item">
         <div>
-          <strong>${escapeHtml(r.establishment_name)}</strong>
+          <strong>${escapeHtml(r.parking_name)}</strong>
           <p style="margin:2px 0;">Espacio ${escapeHtml(r.space_code)} · ${new Date(r.created_at).toLocaleString()}</p>
         </div>
         <span class="badge ${r.status}">${r.status}</span>
@@ -343,9 +419,10 @@ async function renderProfile() {
   setTitle("Mi perfil");
   const { user } = await Api.get("/auth/me");
   state.user = user;
+  const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
   view.innerHTML = `
     <div class="card">
-      <h2>${escapeHtml(user.name)}</h2>
+      <h2>${escapeHtml(fullName || user.email)}</h2>
       <p>${escapeHtml(user.email)}</p>
       <p>${escapeHtml(user.phone || "Sin teléfono registrado")}</p>
     </div>

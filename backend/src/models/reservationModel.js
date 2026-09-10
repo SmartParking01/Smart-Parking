@@ -43,7 +43,8 @@ const ReservationModel = {
 
   async listByEstablishment(establishmentId, status = null) {
     const base = `
-      SELECT r.*, u.email AS user_email, sp.code AS space_code, p.name AS parking_name
+      SELECT r.*, u.email AS user_email, u.first_name AS user_first_name, u.last_name AS user_last_name,
+             sp.code AS space_code, p.name AS parking_name
       FROM reservations r
       JOIN users u ON u.id = r.user_id
       JOIN parking_spaces sp ON sp.id = r.space_id

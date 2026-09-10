@@ -38,6 +38,8 @@ async function seed() {
     name: "Mall Plaza Central",
     address: "San José, Costa Rica",
     description: "Parqueo del mall.",
+    latitude: 9.9281,
+    longitude: -84.0907,
   });
 
   const parking = await ParkingModel.create({
