@@ -24,7 +24,7 @@ function authenticate(req, res, next) {
 
 /**
  * Restringe el acceso a los roles indicados.
- * Uso: authorize("ADMIN"), authorize("ADMIN", "SECURITY")
+ * Uso: authorize("ADMIN"), authorize("ADMIN", "ATTENDANT")
  */
 function authorize(...allowedRoles) {
   return (req, res, next) => {

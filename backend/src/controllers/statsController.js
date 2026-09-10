@@ -1,17 +1,15 @@
 const statsService = require("../services/statsService");
-const { ok, fail } = require("../utils/response");
+const { ok } = require("../utils/response");
 
 async function summary(req, res) {
-  const establishmentId = req.params.establishmentId;
-  const current = await statsService.currentSummary(establishmentId);
+  const current = await statsService.currentSummary(req.params.establishmentId);
   const occupancyRate = statsService.occupancyRatePercent(current);
   return ok(res, { current, occupancyRatePercent: occupancyRate });
 }
 
 async function prediction(req, res) {
-  const establishmentId = req.params.establishmentId;
-  const byHour = await statsService.predictOccupancyByHour(establishmentId);
-  const byWeekday = await statsService.weekdaySummary(establishmentId);
+  const byHour = await statsService.predictOccupancyByHour(req.params.establishmentId);
+  const byWeekday = await statsService.weekdaySummary(req.params.establishmentId);
   return ok(res, { prediction: byHour, weekdayHistory: byWeekday });
 }
 

@@ -1,12 +1,24 @@
+const crypto = require("crypto");
 const { query } = require("../config/db");
 
+function generateReservationCode() {
+  return `RES-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
 const ReservationModel = {
-  async create({ userId, establishmentId, spaceId, qrToken, expiresAtIso }) {
+  // No hace falta manejar manualmente el estado del espacio: el trigger
+  // trg_sync_space_status_from_reservation ya lo hace (CONFIRMED -> RESERVED,
+  // ACTIVE -> OCCUPIED, CANCELLED/EXPIRED/COMPLETED -> AVAILABLE). Tampoco
+  // hace falta un compareAndSet: el EXCLUDE constraint (excl_reservation_no_overlap)
+  // rechaza la reserva a nivel de base de datos si el espacio ya está
+  // comprometido en ese rango de tiempo, incluso ante solicitudes simultáneas.
+  async create({ userId, spaceId, parkingId, startTime, endTime, status = "CONFIRMED" }) {
+    const reservationCode = generateReservationCode();
     const { rows } = await query(
-      `INSERT INTO reservations (user_id, establishment_id, space_id, qr_token, expires_at)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO reservations (user_id, space_id, parking_id, reservation_code, start_time, end_time, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [userId, establishmentId, spaceId, qrToken, expiresAtIso]
+      [userId, spaceId, parkingId, reservationCode, startTime, endTime, status]
     );
     return rows[0];
   },
@@ -16,17 +28,12 @@ const ReservationModel = {
     return rows[0] || null;
   },
 
-  async findByToken(token) {
-    const { rows } = await query("SELECT * FROM reservations WHERE qr_token = $1", [token]);
-    return rows[0] || null;
-  },
-
   async listByUser(userId) {
     const { rows } = await query(
-      `SELECT r.*, s.code as space_code, e.name as establishment_name
+      `SELECT r.*, sp.code AS space_code, p.name AS parking_name
        FROM reservations r
-       JOIN parking_spaces s ON s.id = r.space_id
-       JOIN establishments e ON e.id = r.establishment_id
+       JOIN parking_spaces sp ON sp.id = r.space_id
+       JOIN parkings p ON p.id = r.parking_id
        WHERE r.user_id = $1
        ORDER BY r.created_at DESC`,
       [userId]
@@ -35,55 +42,42 @@ const ReservationModel = {
   },
 
   async listByEstablishment(establishmentId, status = null) {
+    const base = `
+      SELECT r.*, u.email AS user_email, sp.code AS space_code, p.name AS parking_name
+      FROM reservations r
+      JOIN users u ON u.id = r.user_id
+      JOIN parking_spaces sp ON sp.id = r.space_id
+      JOIN parkings p ON p.id = r.parking_id
+      WHERE p.establishment_id = $1
+    `;
     if (status) {
-      const { rows } = await query(
-        `SELECT r.*, u.name as user_name, s.code as space_code
-         FROM reservations r
-         JOIN users u ON u.id = r.user_id
-         JOIN parking_spaces s ON s.id = r.space_id
-         WHERE r.establishment_id = $1 AND r.status = $2
-         ORDER BY r.created_at DESC`,
-        [establishmentId, status]
-      );
+      const { rows } = await query(`${base} AND r.status = $2 ORDER BY r.created_at DESC`, [
+        establishmentId,
+        status,
+      ]);
       return rows;
     }
-    const { rows } = await query(
-      `SELECT r.*, u.name as user_name, s.code as space_code
-       FROM reservations r
-       JOIN users u ON u.id = r.user_id
-       JOIN parking_spaces s ON s.id = r.space_id
-       WHERE r.establishment_id = $1
-       ORDER BY r.created_at DESC`,
-      [establishmentId]
-    );
+    const { rows } = await query(`${base} ORDER BY r.created_at DESC`, [establishmentId]);
     return rows;
   },
 
-  async updateStatus(id, status, extra = {}) {
-    const fields = ["status = $1"];
-    const params = [status];
-    let idx = 2;
-    if (extra.usedAtIso) {
-      fields.push(`used_at = $${idx}`);
-      params.push(extra.usedAtIso);
-      idx += 1;
-    }
-    params.push(id);
-    await query(`UPDATE reservations SET ${fields.join(", ")} WHERE id = $${idx}`, params);
-    return this.findById(id);
+  async updateStatus(id, status) {
+    const { rows } = await query(
+      "UPDATE reservations SET status = $1 WHERE id = $2 RETURNING *",
+      [status, id]
+    );
+    return rows[0] || null;
   },
 
-  // Marca como EXPIRED cualquier reserva ACTIVE cuyo tiempo ya pasó.
-  // Devuelve la lista de reservas recién expiradas (para liberar sus espacios).
+  // Marca como EXPIRED las reservas vencidas que nunca se usaron; el trigger
+  // libera el espacio automáticamente al cambiar el estado.
   async expireOverdue() {
-    const { rows: overdue } = await query(
-      "SELECT * FROM reservations WHERE status = 'ACTIVE' AND expires_at < NOW()"
+    const { rows } = await query(
+      `UPDATE reservations SET status = 'EXPIRED'
+       WHERE status IN ('PENDING', 'CONFIRMED') AND end_time < now()
+       RETURNING *`
     );
-    if (overdue.length > 0) {
-      const ids = overdue.map((r) => r.id);
-      await query("UPDATE reservations SET status = 'EXPIRED' WHERE id = ANY($1::int[])", [ids]);
-    }
-    return overdue;
+    return rows;
   },
 };
 

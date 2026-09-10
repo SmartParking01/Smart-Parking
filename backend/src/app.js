@@ -2,7 +2,9 @@ const express = require("express");
 const cors = require("cors");
 
 const authRoutes = require("./routes/authRoutes");
+const companyRoutes = require("./routes/companyRoutes");
 const establishmentRoutes = require("./routes/establishmentRoutes");
+const parkingRoutes = require("./routes/parkingRoutes");
 const spaceRoutes = require("./routes/spaceRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const entryRoutes = require("./routes/entryRoutes");
@@ -17,7 +19,9 @@ app.use(express.json());
 app.get("/api/health", (req, res) => res.json({ success: true, message: "Smart Parking API activa." }));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/companies", companyRoutes);
 app.use("/api/establishments", establishmentRoutes);
+app.use("/api/parkings", parkingRoutes);
 app.use("/api/spaces", spaceRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/entries", entryRoutes);

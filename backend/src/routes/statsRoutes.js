@@ -5,12 +5,7 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
 
-router.get("/:establishmentId/summary", authenticate, authorize("ADMIN", "SECURITY"), asyncHandler(controller.summary));
-router.get(
-  "/:establishmentId/prediction",
-  authenticate,
-  authorize("ADMIN", "SECURITY"),
-  asyncHandler(controller.prediction)
-);
+router.get("/:establishmentId/summary", authenticate, authorize("ADMIN", "ATTENDANT"), asyncHandler(controller.summary));
+router.get("/:establishmentId/prediction", authenticate, authorize("ADMIN", "ATTENDANT"), asyncHandler(controller.prediction));
 
 module.exports = router;
