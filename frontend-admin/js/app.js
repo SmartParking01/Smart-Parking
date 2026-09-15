@@ -93,7 +93,7 @@ async function router() {
       document.getElementById("chip-initial").textContent = (full[0] || "A").toUpperCase();
     } catch (e) {
       Api.clearToken();
-      window.location.href = "../index.html";
+      window.location.href = "../frontend-user/index.html#/login";
       return;
     }
   }
