@@ -30,7 +30,7 @@ const Api = {
     // 401 → token inválido o expirado → limpia y manda al login
     if (res.status === 401) {
       this.clearToken();
-      window.location.hash = "#/login";
+      window.location.href = "../frontend-user/index.html#/login";
       throw new Error("Token inválido o expirado.");
     }
 
