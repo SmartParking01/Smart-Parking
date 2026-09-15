@@ -79,7 +79,7 @@ const PAGE_META = {
 function navigate(route) { window.location.hash = route; }
 
 async function router() {
-  if (!Api.getToken()) { window.location.href = "../frontend-user/index.html#/login"; return; }
+  if (!Api.getToken()) { window.location.href = "../frontend-admin/index.html#/login"; return; }
 
   if (!state.user) {
     try {
