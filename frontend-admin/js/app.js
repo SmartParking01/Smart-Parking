@@ -186,7 +186,7 @@ const routes = {
   "#/reservations":  renderReservations,
   "#/spaces":        renderSpaces,
   "#/establishments": renderEstablishments,
-  "#/staff":         renderStaff,
+  "#/staff":         renderStaff,       // ← debe decir renderStaff
   "#/stats":         renderStats,
 };
 
