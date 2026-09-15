@@ -1,5 +1,5 @@
 // =============================================================================
-// Smart Parking · Admin Panel (Dark Premium)
+// Smart Parking · Admin Panel (Dark Premium) — Autocontenido
 // =============================================================================
 
 const viewEl    = document.getElementById("view");
@@ -9,6 +9,9 @@ const sideNav   = document.getElementById("side-nav");
 
 let state = { user: null, parkings: [], currentParkingId: null };
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str == null ? "" : String(str);
@@ -50,36 +53,173 @@ function setPageMeta(title, sub) {
 }
 
 // ---------------------------------------------------------------------------
+// LOGIN DEL ADMIN
+// ---------------------------------------------------------------------------
+function renderAdminLogin() {
+  document.getElementById("shell").style.display = "none";
+
+  let loginEl = document.getElementById("admin-login-screen");
+  if (!loginEl) {
+    loginEl = document.createElement("div");
+    loginEl.id = "admin-login-screen";
+    document.body.appendChild(loginEl);
+  }
+  loginEl.style.display = "flex";
+
+  loginEl.innerHTML = `
+    <div style="
+      min-height:100vh;width:100%;
+      display:flex;align-items:center;justify-content:center;
+      background:
+        radial-gradient(ellipse 900px 500px at 20% 0%,rgba(59,130,246,.15),transparent 60%),
+        radial-gradient(ellipse 900px 500px at 80% 100%,rgba(34,197,94,.1),transparent 60%),
+        #0A0F1F;
+      font-family:var(--font-body);
+      padding:40px 20px;
+    ">
+      <div style="
+        width:100%;max-width:420px;
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:20px;
+        padding:42px 36px;
+        box-shadow:0 30px 60px rgba(0,0,0,.5);
+      ">
+        <div style="text-align:center;margin-bottom:28px">
+          <img src="assets/logo.png" alt="Smart Parking"
+               style="height:70px;object-fit:contain;margin-bottom:18px;filter:drop-shadow(0 8px 24px var(--blue-glow))"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+          <div style="
+            display:none;width:70px;height:70px;margin:0 auto 18px;
+            background:linear-gradient(135deg,var(--blue),var(--blue-deep));
+            border-radius:18px;align-items:center;justify-content:center;
+            font-family:var(--font-display);font-weight:800;color:#fff;font-size:30px;
+            box-shadow:0 8px 24px var(--blue-glow);
+          ">P</div>
+          <h2 style="
+            font-family:var(--font-display);font-size:24px;font-weight:800;
+            margin:0 0 6px;color:var(--text);letter-spacing:-.4px;
+          ">Panel Administrativo</h2>
+          <p style="color:var(--muted);font-size:13.5px;margin:0">
+            Acceso solo para administradores y guardas
+          </p>
+        </div>
+
+        <div class="input-group">
+          <label>Correo electrónico</label>
+          <input type="email" id="al-email" placeholder="admin@smartparking.test" autocomplete="email" />
+        </div>
+        <div class="input-group">
+          <label>Contraseña</label>
+          <input type="password" id="al-password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <p class="error-text" id="al-error"></p>
+        <button class="btn" id="al-submit" style="width:100%">Iniciar sesión</button>
+
+        <div style="text-align:center;margin-top:18px">
+          <a href="../frontend-user/index.html" style="color:var(--muted);font-size:12.5px;text-decoration:none">
+            Ir al portal de conductores →
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("al-submit").onclick = async () => {
+    const email    = document.getElementById("al-email").value.trim();
+    const password = document.getElementById("al-password").value;
+    const errEl    = document.getElementById("al-error");
+    errEl.textContent = "";
+
+    if (!email || !password) {
+      errEl.textContent = "Ingresa tu correo y contraseña.";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data.success === false) {
+        throw new Error(data.message || "No se pudo iniciar sesión.");
+      }
+
+      const role  = data.user?.role;
+      const token = data.token;
+
+      if (role !== "ADMIN" && role !== "ATTENDANT") {
+        errEl.textContent = "Esta cuenta no tiene acceso al panel administrativo.";
+        return;
+      }
+
+      Api.setToken(token);
+      state.user = data.user;
+
+      loginEl.style.display = "none";
+      document.getElementById("shell").style.display = "";
+
+      window.location.hash = "#/dashboard";
+      router();
+    } catch (err) {
+      errEl.textContent = err.message;
+    }
+  };
+
+  document.getElementById("al-password").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("al-submit").click();
+  });
+}
+
+// ---------------------------------------------------------------------------
 // ROUTER
 // ---------------------------------------------------------------------------
 const routes = {
-  "#/dashboard":    renderDashboard,
-  "#/entries":      renderEntries,
-  "#/exits":        renderExits,
-  "#/parking":      renderParkingMap,
-  "#/reservations": renderReservations,
-  "#/spaces":       renderSpaces,
+  "#/login":         renderAdminLogin,
+  "#/dashboard":     renderDashboard,
+  "#/entries":       renderEntries,
+  "#/exits":         renderExits,
+  "#/parking":       renderParkingMap,
+  "#/reservations":  renderReservations,
+  "#/spaces":        renderSpaces,
   "#/establishments": renderEstablishments,
-  "#/staff":        renderStaff,
-  "#/stats":        renderStats,
+  "#/staff":         renderStaff,
+  "#/stats":         renderStats,
 };
 
 const PAGE_META = {
-  "#/dashboard":    ["Panel general", "Aquí tienes un resumen del estado de tu parqueo hoy."],
-  "#/entries":      ["Entradas", "Valida reservas por QR o registra entradas sin reserva."],
-  "#/exits":        ["Salidas", "Registra la salida de vehículos y libera espacios."],
-  "#/parking":      ["Mapa del parqueo", "Vista en tiempo real de todos los espacios."],
-  "#/reservations": ["Reservas", "Consulta las reservas de tu establecimiento."],
-  "#/spaces":       ["Gestión de espacios", "Crea, bloquea o elimina espacios."],
+  "#/dashboard":     ["Panel general", "Aquí tienes un resumen del estado de tu parqueo hoy."],
+  "#/entries":       ["Entradas", "Valida reservas por QR o registra entradas sin reserva."],
+  "#/exits":         ["Salidas", "Registra la salida de vehículos y libera espacios."],
+  "#/parking":       ["Mapa del parqueo", "Vista en tiempo real de todos los espacios."],
+  "#/reservations":  ["Reservas", "Consulta las reservas de tu establecimiento."],
+  "#/spaces":        ["Gestión de espacios", "Crea, bloquea o elimina espacios."],
   "#/establishments":["Establecimientos", "Administra tus establecimientos y parqueos."],
-  "#/staff":        ["Personal", "Registra y consulta cuentas de personal."],
-  "#/stats":        ["Estadísticas", "Ocupación y predicción por hora."],
+  "#/staff":         ["Personal", "Registra y consulta cuentas de personal."],
+  "#/stats":         ["Estadísticas", "Ocupación y predicción por hora."],
 };
 
 function navigate(route) { window.location.hash = route; }
 
 async function router() {
-  if (!Api.getToken()) { window.location.href = "../frontend-admin/index.html#/login"; return; }
+  const route = window.location.hash || "#/login";
+
+  if (!Api.getToken()) {
+    if (route !== "#/login") { window.location.hash = "#/login"; return; }
+    return renderAdminLogin();
+  }
+
+  if (route === "#/login") {
+    window.location.hash = "#/dashboard";
+    return;
+  }
+
+  document.getElementById("shell").style.display = "";
+  const loginEl = document.getElementById("admin-login-screen");
+  if (loginEl) loginEl.style.display = "none";
 
   if (!state.user) {
     try {
@@ -93,7 +233,7 @@ async function router() {
       document.getElementById("chip-initial").textContent = (full[0] || "A").toUpperCase();
     } catch (e) {
       Api.clearToken();
-      window.location.href = "../frontend-user/index.html#/login";
+      window.location.hash = "#/login";
       return;
     }
   }
@@ -102,7 +242,6 @@ async function router() {
     btn.classList.toggle("hidden", state.user.role !== "ADMIN")
   );
 
-  const route = window.location.hash || "#/dashboard";
   sideNav.querySelectorAll(".side-btn").forEach((btn) =>
     btn.classList.toggle("active", btn.dataset.route === route)
   );
@@ -122,9 +261,13 @@ sideNav.addEventListener("click", (e) => {
   const btn = e.target.closest(".side-btn");
   if (btn && btn.dataset.route) navigate(btn.dataset.route);
 });
+
 document.getElementById("logout-btn").onclick = () => {
   Api.clearToken();
-  window.location.href = "../index.html";
+  state.user = null;
+  state.parkings = [];
+  state.currentParkingId = null;
+  window.location.hash = "#/login";
 };
 
 // ---------------------------------------------------------------------------
@@ -578,7 +721,7 @@ async function renderEstablishments() {
     errEl.textContent = "";
     try {
       await Api.post("/establishments", {
-        companyId: state.user.companyId,
+                companyId: state.user.companyId,
         name: document.getElementById("e-name").value.trim(),
         address: document.getElementById("e-address").value.trim(),
         description: document.getElementById("e-description").value.trim(),
@@ -620,7 +763,10 @@ async function renderStaff() {
         <div class="input-group"><label>Teléfono</label><input id="st-phone" /></div>
         <div class="input-group">
           <label>Rol</label>
-          <select id="st-role"><option value="ATTENDANT">Guarda de seguridad</option><option value="ADMIN">Administrador</option></select>
+          <select id="st-role">
+            <option value="ATTENDANT">Guarda de seguridad</option>
+            <option value="ADMIN">Administrador</option>
+          </select>
         </div>
       </div>
       <div class="input-group"><label>Contraseña temporal</label><input id="st-password" type="password" /></div>
@@ -714,3 +860,4 @@ async function renderStats() {
 
 // Arranca el router
 router();
+       

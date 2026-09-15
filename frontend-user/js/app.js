@@ -1,14 +1,11 @@
 // =============================================================================
-// Smart Parking · App Conductor (Dark Premium) con login integrado
+// Smart Parking · App Conductor (Dark Premium) — Autocontenido
 // =============================================================================
 
 const view        = document.getElementById("app-view");
 const headerTitle = document.getElementById("header-title");
 const backBtn     = document.getElementById("btn-back");
 const bottomNav   = document.getElementById("bottom-nav");
-
-// Ruta del panel admin (cámbiala si tu carpeta se llama distinto)
-const ADMIN_URL = "../frontend-admin/index.html#/dashboard";
 
 let state = {
   user: null,
@@ -48,11 +45,9 @@ async function router() {
 
   const token = Api.getToken();
 
-  // Sin token → solo puede ver login/register/forgot
   if (!token && !AUTH_FREE_ROUTES.includes(base)) {
     return navigate("#/login");
   }
-  // Con token → no puede ver login, se manda al home
   if (token && AUTH_FREE_ROUTES.includes(base)) {
     return navigate("#/home");
   }
@@ -151,19 +146,16 @@ function renderLogin() {
       const token = data.token;
       if (!role || !token) throw new Error("Respuesta inválida del servidor.");
 
-      // Limpia cualquier token viejo
       localStorage.removeItem("sp_token");
       localStorage.removeItem("sp_admin_token");
 
-      if (role === "ADMIN" || role === "ATTENDANT") {
-        // Admin/guarda → guarda el token y mándalo al panel admin
-        localStorage.setItem("sp_admin_token", token);
-        window.location.href = ADMIN_URL;
-      } else if (role === "USER") {
-        // Conductor → se queda en esta app
+      if (role === "USER") {
         localStorage.setItem("sp_token", token);
         state.user = data.user;
         navigate("#/home");
+      } else if (role === "ADMIN" || role === "ATTENDANT") {
+        localStorage.setItem("sp_admin_token", token);
+        window.location.href = "../frontend-admin/index.html#/dashboard";
       } else {
         throw new Error("Tu cuenta no tiene un rol válido.");
       }
@@ -564,6 +556,7 @@ async function renderProfile() {
 
   document.getElementById("logout-btn").onclick = () => {
     Api.clearToken();
+    state.user = null;
     navigate("#/login");
   };
 }
