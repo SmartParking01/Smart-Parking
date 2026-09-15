@@ -28,7 +28,7 @@ const Api = {
 
     if (res.status === 401) {
       this.clearToken();
-      window.location.href = "../index.html";
+      window.location.href = "../frontend-admin/index.html#/login";
       throw new Error("Token inválido o expirado.");
     }
 
