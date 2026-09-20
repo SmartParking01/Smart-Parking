@@ -19,6 +19,15 @@ async function create(req, res) {
   }
 }
 
+// Listado público (sin autenticación) con solo lo necesario para un selector,
+// usado en la pantalla de auto-registro de personal (antes de tener sesión).
+// A propósito NO incluye disponibilidad ni datos sensibles.
+async function listPublic(req, res) {
+  const establishments = await EstablishmentModel.listAll();
+  const minimal = establishments.map((e) => ({ id: e.id, name: e.name, address: e.address, company_name: e.company_name }));
+  return ok(res, { establishments: minimal });
+}
+
 async function list(req, res) {
   const establishments = await EstablishmentModel.listAll();
   const withAvailability = await Promise.all(
@@ -56,4 +65,4 @@ async function map(req, res) {
   return ok(res, { establishment: { id: establishment.id, name: establishment.name }, parkings });
 }
 
-module.exports = { create, list, getOne, update, map };
+module.exports = { create, list, listPublic, getOne, update, map };

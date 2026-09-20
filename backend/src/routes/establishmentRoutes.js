@@ -5,6 +5,7 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
 
+router.get("/public", asyncHandler(controller.listPublic));
 router.get("/", authenticate, asyncHandler(controller.list));
 router.get("/:id", authenticate, asyncHandler(controller.getOne));
 router.get("/:id/map", authenticate, asyncHandler(controller.map));
