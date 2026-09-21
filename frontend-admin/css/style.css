@@ -269,3 +269,36 @@ h3{font-family:var(--font-display);font-weight:800;font-size:16px;letter-spacing
   .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
   .space-grid{grid-template-columns:repeat(5,1fr)}
 }
+
+/* Ajuste: cuando el .card original tenía colores inline (verde/amarillo/azul), 
+   respetamos ese color en el .stat-value */
+.stat .stat-value[style*="color"] { 
+  font-family: var(--font-display); 
+  font-size: 32px; 
+  font-weight: 800; 
+  letter-spacing: -1px; 
+  margin: 2px 0 0; 
+  line-height: 1; 
+}
+
+/* El .card que sigue siendo .card normal (no .stat) mantiene sus estilos */
+.card:not(.stat) .stat-value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  margin: 4px 0;
+}
+.card:not(.stat) .stat-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* La card de "Ocupación total" con su texto .muted abajo */
+.card.stat .muted {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 10px;
+}
