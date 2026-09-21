@@ -1,0 +1,154 @@
+/* =========================================================================
+   Vista de parqueo en pseudo-3D — hoja de estilos NUEVA Y APARTE.
+   No redefine ni sobreescribe nada de css/style.css: solo usa las mismas
+   variables de color (var(--available), var(--primary), etc.) que ya
+   existen ahí, para que la paleta y la marca se vean exactamente igual.
+   ========================================================================= */
+
+.p3d-wrap {
+  background: var(--card);
+  border-radius: var(--radius, 16px);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.p3d-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.p3d-tag {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.p3d-hint { font-size: 11.5px; }
+
+.p3d-scene {
+  perspective: 1000px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 20px 6px 34px;
+}
+
+.p3d-stage {
+  transform-style: preserve-3d;
+  transform: rotateX(48deg) rotateZ(-28deg);
+  transform-origin: top center;
+  width: max-content;
+  margin: 0 auto;
+}
+
+.p3d-building-block {
+  width: 140px;
+  height: 46px;
+  background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+  border-radius: 6px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 18px rgba(0,0,0,0.18);
+  transform: translateZ(10px);
+}
+.p3d-building-block span {
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  padding: 0 6px;
+}
+
+.p3d-lots { display: flex; flex-direction: column; gap: 18px; }
+
+.p3d-zone-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.p3d-zone { min-width: max-content; }
+.p3d-zone-count { font-weight: 400; }
+
+.p3d-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.p3d-cell {
+  width: 30px;
+  height: 44px;
+  border-radius: 3px;
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transform: translateZ(2px);
+}
+.p3d-cell-top {
+  position: absolute;
+  top: -3px; left: 2px; right: 2px;
+  height: 6px;
+  background: rgba(255,255,255,0.35);
+  border-radius: 2px;
+}
+.p3d-cell-code {
+  font-size: 7px;
+  color: rgba(255,255,255,0.9);
+  font-weight: 700;
+  padding-bottom: 2px;
+  transform: rotateZ(28deg) rotateX(-48deg);
+}
+
+.p3d-status-AVAILABLE, .p3d-dot.p3d-status-AVAILABLE { background: var(--available); }
+.p3d-status-RESERVED, .p3d-dot.p3d-status-RESERVED { background: var(--reserved); }
+.p3d-status-OCCUPIED, .p3d-dot.p3d-status-OCCUPIED { background: var(--primary); }
+.p3d-status-BLOCKED, .p3d-dot.p3d-status-BLOCKED { background: var(--blocked); }
+
+/* Variaciones de disposición por tipo de parqueo real */
+.p3d-layout-lots .p3d-lots { flex-direction: row; gap: 46px; align-items: flex-start; }
+.p3d-layout-structured-garage .p3d-building-block { height: 64px; }
+.p3d-layout-covered-small .p3d-building-block { width: 100px; }
+.p3d-layout-visitor-only .p3d-cell { width: 26px; }
+
+.p3d-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.p3d-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.p3d-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.p3d-toggle-btn:hover { background: var(--primary-light); }

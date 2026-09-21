@@ -17,19 +17,27 @@ async function ensureRolesCatalog() {
   );
 }
 
-// Los 8 establecimientos de este pivote: universidades, hospitales privados
-// y condominios residenciales, todos con un único parqueo de una sola
-// entrada/salida (ya no se maneja el segmento de malls).
+// Los 8 establecimientos reales que Dulce investigó (universidades,
+// hospitales privados y condominios), cada uno con su propio tipo de
+// parqueo real (por eso el campo "layout", que además usa el frontend para
+// dibujar el mapa en pseudo-3D de cada lugar). Ya no se maneja el segmento
+// de malls.
 const ESTABLISHMENTS = [
   {
     type: "Universidad",
+    layout: "lots", // varios lotes con nombre propio (P2, P3, Parqueo 4), como en el plano real
     name: "Universidad Latina de Costa Rica — Campus Heredia",
     address: "Heredia, Costa Rica",
     latitude: 9.9995, longitude: -84.1165,
-    spaces: 24, rows: ["A", "B"],
+    zones: [
+      { label: "P2", short: "P2", count: 10 },
+      { label: "P3", short: "P3", count: 8 },
+      { label: "Parqueo 4", short: "P4", count: 10 },
+    ],
   },
   {
     type: "Universidad",
+    layout: "surface-lot", // lote de superficie a nivel de calle, con espacios de discapacidad marcados
     name: "Universidad Fidelitas — Sede San Pedro",
     address: "San Pedro, San José, Costa Rica",
     latitude: 9.9355, longitude: -84.0500,
@@ -37,6 +45,7 @@ const ESTABLISHMENTS = [
   },
   {
     type: "Hospital",
+    layout: "surface-lot",
     name: "Hospital CIMA San José",
     address: "Escazú, San José, Costa Rica",
     latitude: 9.9354, longitude: -84.1493,
@@ -44,38 +53,47 @@ const ESTABLISHMENTS = [
   },
   {
     type: "Hospital",
+    layout: "structured-garage", // torre de parqueo de varios niveles con barreras, como en las fotos reales
     name: "Hospital Clínica Bíblica",
     address: "San José centro, Costa Rica",
     latitude: 9.9346, longitude: -84.0839,
-    spaces: 28, rows: ["A", "B", "C"],
+    zones: [
+      { label: "Nivel 1", short: "N1", count: 10 },
+      { label: "Nivel 2", short: "N2", count: 10 },
+      { label: "Nivel 3", short: "N3", count: 8 },
+    ],
   },
   {
     type: "Condominio",
-    name: "Condominio Vista Real",
-    address: "Escazú, San José, Costa Rica",
-    latitude: 9.9280, longitude: -84.1400,
-    spaces: 16, rows: ["A"],
+    layout: "covered-small", // parqueo techado y pequeño, detrás del segundo edificio
+    name: "Condominio Lake Arenal Condos",
+    address: "Nuevo Arenal, Tilarán, Guanacaste, Costa Rica",
+    latitude: 10.5469, longitude: -84.8994,
+    spaces: 12, rows: ["A"],
   },
   {
     type: "Condominio",
-    name: "Condominio Trejos Montealegre",
-    address: "Escazú, San José, Costa Rica",
-    latitude: 9.9240, longitude: -84.1450,
-    spaces: 18, rows: ["A"],
+    layout: "tower-shared", // torre con parqueo compartido/de visitas
+    name: "Condominio de las Torres de Paseo Colón",
+    address: "Paseo Colón, San José, Costa Rica",
+    latitude: 9.9350, longitude: -84.0950,
+    spaces: 16, rows: ["A", "B"],
   },
   {
     type: "Condominio",
-    name: "Condominio Lindora Bosques",
-    address: "Santa Ana, San José, Costa Rica",
+    layout: "tower-shared",
+    name: "Condominio Torres del Lago",
+    address: "Sabana, San José, Costa Rica",
+    latitude: 9.9380, longitude: -84.0980,
+    spaces: 16, rows: ["A", "B"],
+  },
+  {
+    type: "Condominio",
+    layout: "visitor-only", // no existe parqueo general (cada casa tiene el suyo); esto es solo el de visitas
+    name: "Condominio Lindora Bosques, Santa Ana",
+    address: "Lindora, Santa Ana, San José, Costa Rica",
     latitude: 9.9270, longitude: -84.1800,
-    spaces: 20, rows: ["A", "B"],
-  },
-  {
-    type: "Condominio",
-    name: "Condominio Villas del Río",
-    address: "Heredia, Costa Rica",
-    latitude: 10.0000, longitude: -84.1100,
-    spaces: 14, rows: ["A"],
+    spacesList: Array.from({ length: 12 }, (_, i) => `Visita ${i + 1}`),
   },
 ];
 
@@ -113,25 +131,57 @@ async function seed() {
       longitude: est.longitude,
     });
 
+    const totalSpaces = est.spacesList ? est.spacesList.length
+      : est.zones ? est.zones.reduce((sum, z) => sum + z.count, 0)
+      : est.spaces;
+
     const parking = await ParkingModel.create({
       establishmentId: establishment.id,
-      name: "Parqueo principal (entrada única)",
-      capacity: est.spaces,
+      name: est.layout === "visitor-only" ? "Parqueo de visitas (entrada única)" : "Parqueo principal (entrada única)",
+      capacity: totalSpaces,
     });
 
-    let created = 0;
-    outer:
-    for (const row of est.rows) {
-      for (let i = 1; created < est.spaces && i <= est.spaces; i++) {
-        const code = `${row}${String(i).padStart(2, "0")}`;
-        await SpaceModel.create({ parkingId: parking.id, code, rowLocation: `Fila ${row}` });
-        created++;
-        if (created >= est.spaces) break outer;
+    if (est.spacesList) {
+      // Lista de nombres reales para mostrar (p. ej. "Visita 1".."Visita 12"),
+      // pero el CÓDIGO en la base debe cumplir letra+número sin espacios ni
+      // texto (chk_space_code_format: ^[A-Z]{1,2}[0-9]{1,3}$), así que el
+      // código interno es A01, A02... y el nombre real queda en row_location
+      // para que el mapa 2D y la vista 3D lo sigan mostrando bien agrupado.
+      for (let i = 0; i < est.spacesList.length; i++) {
+        const code = `A${String(i + 1).padStart(2, "0")}`;
+        await SpaceModel.create({ parkingId: parking.id, code, rowLocation: "Visitas" });
+      }
+    } else if (est.zones) {
+      // Varios lotes con nombre propio (p. ej. Universidad Latina: P2, P3, Parqueo 4).
+      // El código real usa una letra por zona (A, B, C...) porque el nombre
+      // "P2" ya trae un dígito y rompe chk_space_code_format; el nombre bonito
+      // (P2, Nivel 1, etc.) se guarda en row_location, que es texto libre y es
+      // lo que realmente usan la cuadrícula y la vista 3D para agrupar.
+      const zoneLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      for (let zIdx = 0; zIdx < est.zones.length; zIdx++) {
+        const zone = est.zones[zIdx];
+        const letter = zoneLetters[zIdx] || "Z";
+        for (let i = 1; i <= zone.count; i++) {
+          const code = `${letter}${String(i).padStart(2, "0")}`; // ej. "A01" — cumple el formato exigido
+          await SpaceModel.create({ parkingId: parking.id, code, rowLocation: zone.label });
+        }
+      }
+    } else {
+      // Filas simples tipo A01, A02... (lotes de superficie o garajes por nivel).
+      let created = 0;
+      outer:
+      for (const row of est.rows) {
+        for (let i = 1; created < est.spaces && i <= est.spaces; i++) {
+          const code = `${row}${String(i).padStart(2, "0")}`;
+          await SpaceModel.create({ parkingId: parking.id, code, rowLocation: `Fila ${row}` });
+          created++;
+          if (created >= est.spaces) break outer;
+        }
       }
     }
 
     createdEstablishments.push({ ...est, companyId: company.id, establishmentId: establishment.id, parkingId: parking.id });
-    console.log(`  -> ${est.type}: "${est.name}" (${est.spaces} espacios, 1 parqueo)`);
+    console.log(`  -> ${est.type}: "${est.name}" (${totalSpaces} espacios, layout: ${est.layout})`);
   }
 
   // Cuentas de prueba. El dominio @smartparking-staff.cr es lo que el
