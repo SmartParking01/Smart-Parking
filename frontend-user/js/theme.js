@@ -3,73 +3,70 @@
 // =============================================================================
 (function () {
 
-  // Lista de imágenes de relleno por si no tenemos una URL del backend
-  const FALLBACK_IMGS = [
-    "https://images.unsplash.com/photo-1519567241046-7f570eee3ce6?auto=format&fit=crop&w=600&q=70",
-    "https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=600&q=70",
-    "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=70",
-    "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=70"
-  ];
-  function imgFor(index) {
-    return FALLBACK_IMGS[index % FALLBACK_IMGS.length];
+  // Mapeo foto ↔ establecimiento (archivo aparte: parking-images.js)
+  function getImageFor(establishmentName, index) {
+    const map = window.PARKING_IMAGES || {};
+    // 1) Coincidencia exacta
+    if (map[establishmentName]) return map[establishmentName];
+    // 2) Coincidencia por palabras clave (contains, case-insensitive)
+    const nameLower = (establishmentName || "").toLowerCase();
+    for (const key in map) {
+      if (nameLower.includes(key.toLowerCase())) return map[key];
+    }
+    // 3) Fallback por índice
+    const FALLBACKS = [
+      "assets/parking-u-latina.jpg",
+      "assets/parking-u-fidelitas.jpg",
+      "assets/parking-clinica-biblica.jpg",
+      "assets/parking-hospital-cima.jpg",
+      "assets/parking-vista-real.jpg",
+      "assets/parking-villas-del-rio.jpg",
+      "assets/parking-trejos-montealegre.jpg",
+      "assets/parking-bosques-lindora.jpg"
+    ];
+    return FALLBACKS[index % FALLBACKS.length];
   }
 
-  // ---------------------------------------------------------------
-  // Limpieza del logo blanco (mix-blend-mode)
-  // ---------------------------------------------------------------
   function injectLogoCleanup() {
     const logo = document.getElementById("app-logo");
     if (logo) logo.classList.add("logo-clean");
   }
 
   // ---------------------------------------------------------------
-  // HOME: rediseñar la vista completa
+  // HOME: rediseñar
   // ---------------------------------------------------------------
   function renderHome() {
     const view = document.getElementById("app-view");
     if (!view) return;
 
-    // Detectar si ya lo reescribimos (para no borrar la lista original)
-    if (view.dataset.themed === "home") {
-      // Si ya está armado, refrescamos solo las tarjetas de establecimientos
-      decorateHome();
-      return;
-    }
+    if (view.dataset.themed === "home") return;
 
-    // Guardar los items de establecimientos que app.js generó
     const originalItems = Array.from(view.querySelectorAll(".establishment-item"));
-
-    // Si no hay items, no hacemos nada (probablemente otra ruta)
     if (originalItems.length === 0 && !view.querySelector(".card.hero")) return;
 
     view.dataset.themed = "home";
 
-    // Extraer datos
     const establishments = originalItems.map((item, i) => {
       const nameEl = item.querySelector(".establishment-info h3");
       const addrEl = item.querySelector(".establishment-info p");
       const pillEl = item.querySelector(".availability-pill");
+      const name = nameEl ? nameEl.textContent.trim() : "Parqueo";
       return {
-        name: nameEl ? nameEl.textContent.trim() : "Parqueo",
+        name,
         address: addrEl ? addrEl.textContent.trim() : "",
         availability: pillEl ? pillEl.textContent.trim() : "",
         availClass: pillEl ? (pillEl.classList.contains("high") ? "high" :
                               pillEl.classList.contains("mid") ? "mid" : "low") : "high",
-        img: imgFor(i)
+        img: getImageFor(name, i)
       };
     });
 
-    // Extraer el nombre del usuario si app.js lo dejó en algún lado
-    // (usamos un saludo genérico si no hay)
-    const helloName = "¡Hola!";
-
-    // Reconstruir la vista
     view.innerHTML = `
       <div class="home-hero">
         <div class="home-hero-img"></div>
         <div class="home-hero-overlay"></div>
         <div class="home-hero-content">
-          <h1>${helloName}</h1>
+          <h1>¡Hola!</h1>
           <p>¿A dónde vamos hoy?</p>
         </div>
       </div>
@@ -141,7 +138,6 @@
       </div>
     `;
 
-    // Click en una tarjeta → navega al establecimiento (usa la ruta real de app.js)
     view.querySelectorAll(".home-parking").forEach((card, idx) => {
       card.onclick = () => {
         const original = originalItems[idx];
@@ -149,7 +145,6 @@
       };
     });
 
-    // Click en las acciones del grid → simular clicks en los nav-btn originales
     view.querySelectorAll(".home-action").forEach((btn) => {
       btn.onclick = () => {
         const action = btn.dataset.action;
@@ -160,11 +155,9 @@
           const histBtn = document.querySelector('#bottom-nav .nav-btn[data-route="#/history"]');
           if (histBtn) histBtn.click();
         } else if (action === "reserve") {
-          // "Reservar" = scroll a la lista de parqueos cercanos
           const list = document.querySelector(".home-parking-list");
           if (list) list.scrollIntoView({ behavior: "smooth", block: "start" });
         } else if (action === "map") {
-          // "Mapa" = scroll al final (donde suele estar el mapa si existe)
           const map = document.getElementById("geo-map");
           if (map) map.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -172,13 +165,6 @@
     });
   }
 
-  function decorateHome() {
-    // Placeholder para futura expansión
-  }
-
-  // ---------------------------------------------------------------
-  // Decorar otras vistas (reservas, perfil, establecimiento)
-  // ---------------------------------------------------------------
   function decorateEstablishments() {
     document.querySelectorAll(".establishment-item").forEach((item) => {
       if (item.dataset.themed) return;
@@ -209,12 +195,8 @@
     });
   }
 
-  // ---------------------------------------------------------------
-  // Ejecutar todo
-  // ---------------------------------------------------------------
   function runAll() {
     injectLogoCleanup();
-    // Solo rediseñamos home cuando estamos en home
     if (!window.location.hash || window.location.hash === "#/home") {
       renderHome();
     }
@@ -223,29 +205,22 @@
     decorateButtons();
   }
 
-  // ---------------------------------------------------------------
-  // Escapar HTML
-  // ---------------------------------------------------------------
   function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str == null ? "" : String(str);
     return div.innerHTML;
   }
 
-  // Arranque
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", runAll);
   } else {
     runAll();
   }
 
-  // Observador del #app-view
   const viewEl = document.getElementById("app-view");
   if (viewEl) {
     new MutationObserver(() => {
-      // Solo intentamos rediseñar el home si estamos en esa ruta
       if (!window.location.hash || window.location.hash === "#/home") {
-        // Esperar un tick para que app.js termine de pintar
         setTimeout(renderHome, 30);
       } else {
         decorateEstablishments();
@@ -255,14 +230,12 @@
     }).observe(viewEl, { childList: true, subtree: false });
   }
 
-  // Al cambiar el hash, resetear el flag para que el próximo render se rehaga
   window.addEventListener("hashchange", () => {
     const v = document.getElementById("app-view");
     if (v) delete v.dataset.themed;
     setTimeout(runAll, 60);
   });
 
-  // Reintentos
   setTimeout(runAll, 150);
   setTimeout(runAll, 500);
   setTimeout(runAll, 1200);
