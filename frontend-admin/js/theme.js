@@ -1,9 +1,8 @@
 // =============================================================================
 // theme.js — Solo decoración visual. NO toca la lógica de app.js.
-// Espera a que app.js pinte el DOM y le agrega clases/clases visuales.
+// Corrige el style inline "display:flex" que app.js pone en #shell.
 // =============================================================================
 (function () {
-  // ------------------- Íconos SVG del sidebar -------------------
   const NAV_ICONS = {
     "#/dashboard":    '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
     "#/entries":      '<path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/>',
@@ -16,166 +15,142 @@
     "#/stats":        '<path d="M3 21h18M7 17v-6M12 17V7M17 17v-4"/>'
   };
 
-  // ------------------- Íconos SVG para las tarjetas de stats -------------------
   const STAT_ICONS = {
     "Disponibles": { cls: "green",  svg: '<path d="M5 17h14M5 17V9l2-5h10l2 5v8M7 17v2a1 1 0 001 1h1a1 1 0 001-1v-2M14 17v2a1 1 0 001 1h1a1 1 0 001-1v-2"/>' },
     "Reservados":  { cls: "yellow", svg: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
     "Ocupados":    { cls: "blue",   svg: '<path d="M5 17h14M5 17V9l2-5h10l2 5v8M7 17v2a1 1 0 001 1h1a1 1 0 001-1v-2M14 17v2a1 1 0 001 1h1a1 1 0 001-1v-2"/>' },
-    "Ocupación actual": { cls: "green", svg: '<path d="M3 21h18M7 17v-6M12 17V7M17 17v-4"/>' },
-    "Espacios ocupados": { cls: "blue", svg: '<path d="M5 17h14M5 17V9l2-5h10l2 5v8"/>' },
+    "Ocupación actual":  { cls: "green",  svg: '<path d="M3 21h18M7 17v-6M12 17V7M17 17v-4"/>' },
+    "Espacios ocupados": { cls: "blue",   svg: '<path d="M5 17h14M5 17V9l2-5h10l2 5v8"/>' },
     "Total de espacios": { cls: "yellow", svg: '<rect x="3" y="6" width="18" height="15" rx="2"/>' }
   };
 
-  // ------------------- Reemplaza emojis del sidebar por SVG -------------------
-function fixSidebar() {
-  // ------------------------------------------------
-  // BRAND: logo + "SMART PARKING" en 2 líneas
-  // ------------------------------------------------
-  const brand = document.querySelector(".brand");
-  if (brand) {
-    // Buscar el .brand-row (donde está el img + nombre viejo)
-    let brandRow = brand.querySelector(".brand-row");
-    if (!brandRow) {
-      brandRow = brand;
+  // ---------------------------------------------------------------
+  // CORRECCIÓN CLAVE: quitar el style="display:flex" que app.js pone
+  // ---------------------------------------------------------------
+  function fixShellDisplay() {
+    const shell = document.getElementById("shell");
+    if (!shell) return;
+    // app.js pone esto → lo borramos para que gane el CSS (display:grid)
+    if (shell.style.display === "flex" || shell.style.display === "block") {
+      shell.style.removeProperty("display");
     }
+  }
 
-    // Quitar el <span class="brand-name">Smart Parking</span> viejo
-    const oldName = brandRow.querySelector(".brand-name");
-    if (oldName) oldName.remove();
+  // ---------------------------------------------------------------
+  // BRAND: logo + "SMART PARKING" al lado
+  // ---------------------------------------------------------------
+  function fixSidebar() {
+    const brand = document.querySelector(".brand");
+    if (brand) {
+      const brandRow = brand.querySelector(".brand-row") || brand;
 
-    // Buscar el <img> dentro del brand
-    const img = brandRow.querySelector("#app-logo, img");
+      const oldName = brandRow.querySelector(".brand-name");
+      if (oldName) oldName.remove();
 
-    // Crear el bloque de texto SMART/PARKING si no existe
-    let brandText = brandRow.querySelector(".brand-text");
-    if (!brandText) {
-      brandText = document.createElement("div");
-      brandText.className = "brand-text";
-      brandText.innerHTML = "SMART<small>PARKING</small>";
-      if (img && img.nextSibling) {
-        brandRow.insertBefore(brandText, img.nextSibling);
-      } else {
-        brandRow.appendChild(brandText);
+      const img = brandRow.querySelector("#app-logo, img");
+
+      let brandText = brandRow.querySelector(".brand-text");
+      if (!brandText) {
+        brandText = document.createElement("div");
+        brandText.className = "brand-text";
+        brandText.innerHTML = "SMART<small>PARKING</small>";
+        if (img && img.nextSibling) brandRow.insertBefore(brandText, img.nextSibling);
+        else brandRow.appendChild(brandText);
       }
+
+      const oldSub = brand.querySelector(".brand-sub");
+      if (oldSub) oldSub.style.display = "none";
     }
 
-    // Ocultar el .brand-sub viejo (ya no se usa)
-    const oldSub = brand.querySelector(".brand-sub");
-    if (oldSub) oldSub.style.display = "none";
-  }
+    // Botones del sidebar
+    document.querySelectorAll("#side-nav .side-btn, #logout-btn").forEach((btn) => {
+      if (btn.querySelector("svg")) return;
+      const route = btn.getAttribute("data-route");
+      const svg = route ? NAV_ICONS[route]
+                        : '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>';
+      if (!svg) return;
+      let text = btn.textContent.trim();
+      text = text.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u, "").trim() || text;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${svg}</svg><span>${text}</span>`;
+    });
 
-  // ------------------------------------------------
-  // BOTONES DEL SIDEBAR: reemplazar emojis por SVG
-  // ------------------------------------------------
-  document.querySelectorAll("#side-nav .side-btn, #logout-btn").forEach((btn) => {
-    if (btn.querySelector("svg")) return; // ya procesado
-    const route = btn.getAttribute("data-route");
-    const svg = route ? NAV_ICONS[route]
-                      : '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>';
-    if (!svg) return;
-    let text = btn.textContent.trim();
-    text = text.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u, "").trim() || text;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${svg}</svg><span>${text}</span>`;
-  });
+    // Pie del sidebar
+    const sidebar = document.getElementById("sidebar");
+    if (sidebar && !sidebar.querySelector(".side-foot")) {
+      const foot = document.createElement("div");
+      foot.className = "side-foot";
+      foot.innerHTML = `
+        <div class="side-user">
+          <div class="side-user-icon" id="theme-user-initial">A</div>
+          <div class="side-user-info">
+            <strong id="theme-user-name">Administrador</strong>
+            <span id="theme-user-role">Cargando…</span>
+          </div>
+        </div>`;
+      sidebar.appendChild(foot);
+    }
 
-  // ------------------------------------------------
-  // PIE DEL SIDEBAR: avatar usuario
-  // ------------------------------------------------
-  const sidebar = document.getElementById("sidebar");
-  if (sidebar && !sidebar.querySelector(".side-foot")) {
-    const foot = document.createElement("div");
-    foot.className = "side-foot";
-    foot.innerHTML = `
-      <div class="side-user">
-        <div class="side-user-icon" id="theme-user-initial">A</div>
-        <div class="side-user-info">
-          <strong id="theme-user-name">Administrador</strong>
-          <span id="theme-user-role">Cargando…</span>
+    // Topbar right
+    const topbar = document.getElementById("topbar");
+    if (topbar && !topbar.querySelector(".topbar-right")) {
+      const right = document.createElement("div");
+      right.className = "topbar-right";
+      right.innerHTML = `
+        <div class="icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
         </div>
-      </div>`;
-    sidebar.appendChild(foot);
+        <div class="user-chip">
+          <div class="user-chip-avatar" id="theme-chip-initial">A</div>
+          <span id="theme-chip-name">Administrador</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>`;
+      topbar.appendChild(right);
+    }
+
+    // Sincronizar usuario con #who-am-i
+    const who = document.getElementById("who-am-i");
+    if (who && who.textContent.trim()) {
+      const [namePart, rolePart] = who.textContent.split(",").map(s => s.trim());
+      const name = namePart || "Administrador";
+      const initial = name.charAt(0).toUpperCase();
+      ["theme-user-initial", "theme-chip-initial"].forEach(id => {
+        const el = document.getElementById(id); if (el) el.textContent = initial;
+      });
+      ["theme-user-name", "theme-chip-name"].forEach(id => {
+        const el = document.getElementById(id); if (el) el.textContent = name;
+      });
+      const roleEl = document.getElementById("theme-user-role");
+      if (roleEl) roleEl.textContent = rolePart || "";
+    }
   }
 
-  // ------------------------------------------------
-  // TOPBAR: campanita + chip usuario
-  // ------------------------------------------------
-  const topbar = document.getElementById("topbar");
-  if (topbar && !topbar.querySelector(".topbar-right")) {
-    const right = document.createElement("div");
-    right.className = "topbar-right";
-    right.innerHTML = `
-      <div class="icon-badge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
-      </div>
-      <div class="user-chip">
-        <div class="user-chip-avatar" id="theme-chip-initial">A</div>
-        <span id="theme-chip-name">Administrador</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </div>`;
-    topbar.appendChild(right);
-  }
-
-  // ------------------------------------------------
-  // SINCRONIZAR datos con #who-am-i (que llena app.js)
-  // ------------------------------------------------
-  const who = document.getElementById("who-am-i");
-  if (who && who.textContent.trim()) {
-    const txt = who.textContent.trim();
-    const [namePart, rolePart] = txt.split(",").map(s => s.trim());
-    const name = namePart || "Administrador";
-    const initial = name.charAt(0).toUpperCase();
-    ["theme-user-initial", "theme-chip-initial"].forEach(id => {
-      const el = document.getElementById(id); if (el) el.textContent = initial;
-    });
-    ["theme-user-name", "theme-chip-name"].forEach(id => {
-      const el = document.getElementById(id); if (el) el.textContent = name;
-    });
-    const roleEl = document.getElementById("theme-user-role");
-    if (roleEl) roleEl.textContent = rolePart || "";
-  }
-}
-
-  // ------------------- Convierte .card > .stat-label a .stat con ícono -------------------
+  // ---------------------------------------------------------------
+  // Decorar las cards de stats (agrega .stat y .stat-icon)
+  // ---------------------------------------------------------------
   function decorateStatCards() {
     const view = document.getElementById("view");
     if (!view) return;
 
-    // 1) Buscar todos los .grid-3 y .grid-4 del dashboard/stats que tengan
-    //    tarjetas con solo .stat-label + .stat-value
     view.querySelectorAll(".grid-3, .grid-4").forEach((grid) => {
-      const cards = grid.querySelectorAll(":scope > .card");
-      cards.forEach((card) => {
-        if (card.classList.contains("stat")) return; // ya procesada
-
-        const labelEl = card.querySelector(":scope > .stat-label, :scope > .stat-value + .stat-label, :scope > .stat-label + .stat-value");
+      grid.querySelectorAll(":scope > .card").forEach((card) => {
+        if (card.classList.contains("stat")) return;
         const labelNode = card.querySelector(":scope > .stat-label");
-        if (!labelNode) return;
+        const valueNode = card.querySelector(":scope > .stat-value");
+        if (!labelNode || !valueNode) return;
 
         const labelText = labelNode.textContent.trim();
         const info = STAT_ICONS[labelText];
-        const valueNode = card.querySelector(":scope > .stat-value");
-        if (!valueNode) return;
+        const valueHTML = valueNode.outerHTML;
 
-        // Reconstruir la tarjeta en formato .stat
         card.classList.add("stat");
-
-        // Sacar HTML del value (puede tener color inline)
-        const valueHTML = valueNode.outerHTML.replace('class="stat-value"', 'class="stat-value"');
-
-        // Ícono
         const iconHTML = info
           ? `<div class="stat-head"><div class="stat-icon ${info.cls}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${info.svg}</svg></div></div>`
           : "";
-
-        card.innerHTML = `${iconHTML}
-          <div>
-            <div class="stat-label">${labelText}</div>
-            ${valueHTML}
-          </div>`;
+        card.innerHTML = `${iconHTML}<div><div class="stat-label">${labelText}</div>${valueHTML}</div>`;
       });
     });
 
-    // 2) La card "Ocupación total" (no está en grid-3, es un card suelto)
+    // Card "Ocupación total" suelta
     view.querySelectorAll(":scope > .card").forEach((card) => {
       if (card.classList.contains("stat")) return;
       if (card.querySelector(".stat-icon")) return;
@@ -188,8 +163,11 @@ function fixSidebar() {
       const info = STAT_ICONS[labelText];
       if (!info) return;
 
-      card.classList.add("stat");
+      const muted = card.querySelector(":scope > .muted");
+      const mutedHTML = muted ? muted.outerHTML : "";
       const valueHTML = valueNode.outerHTML;
+
+      card.classList.add("stat");
       card.innerHTML = `
         <div class="stat-head">
           <div class="stat-icon ${info.cls}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${info.svg}</svg></div>
@@ -198,35 +176,68 @@ function fixSidebar() {
           <div class="stat-label">${labelText}</div>
           ${valueHTML}
         </div>
-        ${card.querySelector(":scope > .muted") ? card.querySelector(":scope > .muted").outerHTML : ""}
-      `;
+        ${mutedHTML}`;
     });
   }
 
-  // ------------------- Ejecuta todo -------------------
+  // ---------------------------------------------------------------
+  // Ejecuta todo
+  // ---------------------------------------------------------------
   function runAll() {
+    fixShellDisplay();
     fixSidebar();
     decorateStatCards();
   }
 
-  // Arranca cuando el DOM esté listo
+  // ---------------------------------------------------------------
+  // OBSERVER CLAVE: vigila #shell para quitarle el display:flex inline
+  // que app.js pone cada vez que hace afterLogin() o router()
+  // ---------------------------------------------------------------
+  function watchShell() {
+    const shell = document.getElementById("shell");
+    if (!shell) return;
+    fixShellDisplay(); // por si ya está mal
+
+    const shellObserver = new MutationObserver(() => {
+      if (shell.style.display === "flex" || shell.style.display === "block") {
+        shell.style.removeProperty("display");
+      }
+    });
+    shellObserver.observe(shell, {
+      attributes: true,
+      attributeFilter: ["style"]
+    });
+  }
+
+  // Arranca
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", runAll);
+    document.addEventListener("DOMContentLoaded", () => {
+      watchShell();
+      runAll();
+    });
   } else {
+    watchShell();
     runAll();
   }
 
-  // Observa cambios en #view y #topbar para decorar tras cada router()
-  const mo = new MutationObserver(() => {
-    fixSidebar();
-    decorateStatCards();
-  });
-  const view = document.getElementById("view");
-  if (view) mo.observe(view, { childList: true, subtree: false });
-  const topbar = document.getElementById("topbar");
-  if (topbar) mo.observe(topbar, { childList: true, subtree: false });
+  // Observa el #view para decorar tras cada router()
+  const viewEl = document.getElementById("view");
+  if (viewEl) {
+    new MutationObserver(() => {
+      fixShellDisplay();
+      decorateStatCards();
+    }).observe(viewEl, { childList: true, subtree: false });
+  }
 
-  // Reintentos de seguridad
-  setTimeout(runAll, 200);
-  setTimeout(runAll, 800);
+  // Observa el topbar y sidebar por si aparecen nuevos elementos
+  const topbarEl = document.getElementById("topbar");
+  if (topbarEl) {
+    new MutationObserver(fixSidebar).observe(topbarEl, { childList: true, subtree: false });
+  }
+
+  // Reintentos por si acaso
+  setTimeout(runAll, 100);
+  setTimeout(runAll, 400);
+  setTimeout(runAll, 1000);
+  setTimeout(fixShellDisplay, 1500);
 })();
