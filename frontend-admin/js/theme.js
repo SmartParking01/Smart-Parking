@@ -27,86 +27,113 @@
   };
 
   // ------------------- Reemplaza emojis del sidebar por SVG -------------------
-  function fixSidebar() {
-    // Brand: <span class="brand-name">Smart Parking</span> se quita y se pone SMART/PARKING
-    const brand = document.querySelector(".brand");
-    if (brand) {
-      const nameEl = brand.querySelector(".brand-name");
-      if (nameEl) nameEl.remove();
-      let subEl = brand.querySelector(".brand-sub");
-      if (!subEl) {
-        subEl = document.createElement("span");
-        subEl.className = "brand-sub";
-        brand.appendChild(subEl);
+function fixSidebar() {
+  // ------------------------------------------------
+  // BRAND: logo + "SMART PARKING" en 2 líneas
+  // ------------------------------------------------
+  const brand = document.querySelector(".brand");
+  if (brand) {
+    // Buscar el .brand-row (donde está el img + nombre viejo)
+    let brandRow = brand.querySelector(".brand-row");
+    if (!brandRow) {
+      brandRow = brand;
+    }
+
+    // Quitar el <span class="brand-name">Smart Parking</span> viejo
+    const oldName = brandRow.querySelector(".brand-name");
+    if (oldName) oldName.remove();
+
+    // Buscar el <img> dentro del brand
+    const img = brandRow.querySelector("#app-logo, img");
+
+    // Crear el bloque de texto SMART/PARKING si no existe
+    let brandText = brandRow.querySelector(".brand-text");
+    if (!brandText) {
+      brandText = document.createElement("div");
+      brandText.className = "brand-text";
+      brandText.innerHTML = "SMART<small>PARKING</small>";
+      if (img && img.nextSibling) {
+        brandRow.insertBefore(brandText, img.nextSibling);
+      } else {
+        brandRow.appendChild(brandText);
       }
-      subEl.classList.add("brand-text");
-      if (!subEl.querySelector("small")) {
-        subEl.innerHTML = "SMART<small>PARKING</small>";
-      }
     }
 
-    // Botones del sidebar
-    document.querySelectorAll("#side-nav .side-btn, #logout-btn").forEach((btn) => {
-      if (btn.querySelector("svg")) return; // ya procesado
-      const route = btn.getAttribute("data-route");
-      const svg = route ? NAV_ICONS[route]
-                        : '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>';
-      if (!svg) return;
-      let text = btn.textContent.trim();
-      text = text.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u, "").trim() || text;
-      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${svg}</svg><span>${text}</span>`;
-    });
-
-    // Pie del sidebar con usuario
-    const sidebar = document.getElementById("sidebar");
-    if (sidebar && !sidebar.querySelector(".side-foot")) {
-      const foot = document.createElement("div");
-      foot.className = "side-foot";
-      foot.innerHTML = `
-        <div class="side-user">
-          <div class="side-user-icon" id="theme-user-initial">A</div>
-          <div>
-            <strong id="theme-user-name">Administrador</strong>
-            <span id="theme-user-role">Cargando…</span>
-          </div>
-        </div>`;
-      sidebar.appendChild(foot);
-    }
-
-    // Topbar right: campanita + chip
-    const topbar = document.getElementById("topbar");
-    if (topbar && !topbar.querySelector(".topbar-right")) {
-      const right = document.createElement("div");
-      right.className = "topbar-right";
-      right.innerHTML = `
-        <div class="icon-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
-        </div>
-        <div class="user-chip">
-          <div class="user-chip-avatar" id="theme-chip-initial">A</div>
-          <span id="theme-chip-name">Administrador</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-        </div>`;
-      topbar.appendChild(right);
-    }
-
-    // Sincroniza con #who-am-i (que app.js llena)
-    const who = document.getElementById("who-am-i");
-    if (who && who.textContent.trim()) {
-      const txt = who.textContent.trim();
-      const [namePart, rolePart] = txt.split(",").map(s => s.trim());
-      const name = namePart || "Administrador";
-      const initial = name.charAt(0).toUpperCase();
-      ["theme-user-initial","theme-chip-initial"].forEach(id => {
-        const el = document.getElementById(id); if (el) el.textContent = initial;
-      });
-      ["theme-user-name","theme-chip-name"].forEach(id => {
-        const el = document.getElementById(id); if (el) el.textContent = name;
-      });
-      const roleEl = document.getElementById("theme-user-role");
-      if (roleEl) roleEl.textContent = rolePart || "";
-    }
+    // Ocultar el .brand-sub viejo (ya no se usa)
+    const oldSub = brand.querySelector(".brand-sub");
+    if (oldSub) oldSub.style.display = "none";
   }
+
+  // ------------------------------------------------
+  // BOTONES DEL SIDEBAR: reemplazar emojis por SVG
+  // ------------------------------------------------
+  document.querySelectorAll("#side-nav .side-btn, #logout-btn").forEach((btn) => {
+    if (btn.querySelector("svg")) return; // ya procesado
+    const route = btn.getAttribute("data-route");
+    const svg = route ? NAV_ICONS[route]
+                      : '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>';
+    if (!svg) return;
+    let text = btn.textContent.trim();
+    text = text.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u, "").trim() || text;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${svg}</svg><span>${text}</span>`;
+  });
+
+  // ------------------------------------------------
+  // PIE DEL SIDEBAR: avatar usuario
+  // ------------------------------------------------
+  const sidebar = document.getElementById("sidebar");
+  if (sidebar && !sidebar.querySelector(".side-foot")) {
+    const foot = document.createElement("div");
+    foot.className = "side-foot";
+    foot.innerHTML = `
+      <div class="side-user">
+        <div class="side-user-icon" id="theme-user-initial">A</div>
+        <div class="side-user-info">
+          <strong id="theme-user-name">Administrador</strong>
+          <span id="theme-user-role">Cargando…</span>
+        </div>
+      </div>`;
+    sidebar.appendChild(foot);
+  }
+
+  // ------------------------------------------------
+  // TOPBAR: campanita + chip usuario
+  // ------------------------------------------------
+  const topbar = document.getElementById("topbar");
+  if (topbar && !topbar.querySelector(".topbar-right")) {
+    const right = document.createElement("div");
+    right.className = "topbar-right";
+    right.innerHTML = `
+      <div class="icon-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      </div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="theme-chip-initial">A</div>
+        <span id="theme-chip-name">Administrador</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>`;
+    topbar.appendChild(right);
+  }
+
+  // ------------------------------------------------
+  // SINCRONIZAR datos con #who-am-i (que llena app.js)
+  // ------------------------------------------------
+  const who = document.getElementById("who-am-i");
+  if (who && who.textContent.trim()) {
+    const txt = who.textContent.trim();
+    const [namePart, rolePart] = txt.split(",").map(s => s.trim());
+    const name = namePart || "Administrador";
+    const initial = name.charAt(0).toUpperCase();
+    ["theme-user-initial", "theme-chip-initial"].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = initial;
+    });
+    ["theme-user-name", "theme-chip-name"].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = name;
+    });
+    const roleEl = document.getElementById("theme-user-role");
+    if (roleEl) roleEl.textContent = rolePart || "";
+  }
+}
 
   // ------------------- Convierte .card > .stat-label a .stat con ícono -------------------
   function decorateStatCards() {
