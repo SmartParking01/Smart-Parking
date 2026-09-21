@@ -1,3 +1,7 @@
+// =============================================================================
+// Smart Parking · App Conductor (Dark Premium)
+// =============================================================================
+
 const view = document.getElementById("app-view");
 const headerTitle = document.getElementById("header-title");
 const backBtn = document.getElementById("btn-back");
@@ -9,30 +13,42 @@ let state = {
   currentEstablishmentId: null,
   currentSpaces: [],
   selectedSpaceId: null,
-  geoMap: null, // instancia de Leaflet
+  lastReservationId: null,
+  lastQrImage: null,
+  geoMap: null,
 };
 
 // ---------------------------------------------------------------------------
-// Router muy simple basado en hash, apropiado para una SPA tipo app móvil.
+// HELPERS
 // ---------------------------------------------------------------------------
-const routes = {
-  "#/login": renderLogin,
-  "#/register": renderRegister,
-  "#/forgot": renderForgot,
-  "#/home": renderHome,
-  "#/establishment": renderEstablishment,
-  "#/reserve": renderReserveConfirm,
-  "#/payment": renderPayment,
-  "#/qr": renderQr,
-  "#/history": renderHistory,
-  "#/profile": renderProfile,
-};
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+function setTitle(title) { headerTitle.textContent = title; }
+function showLoading() { view.innerHTML = `<div class="spinner"></div>`; }
 
 const AUTH_FREE_ROUTES = ["#/login", "#/register", "#/forgot"];
 
-function navigate(route) {
-  window.location.hash = route;
-}
+// ---------------------------------------------------------------------------
+// ROUTER
+// ---------------------------------------------------------------------------
+const routes = {
+  "#/login":         renderLogin,
+  "#/register":      renderRegister,
+  "#/forgot":        renderForgot,
+  "#/home":          renderHome,
+  "#/map":           renderMap,
+  "#/establishment": renderEstablishment,
+  "#/reserve":       renderReserveConfirm,
+  "#/qr":            renderQr,
+  "#/reservations":  renderHistory,
+  "#/history":       renderHistory,
+  "#/profile":       renderProfile,
+};
+
+function navigate(route) { window.location.hash = route; }
 
 async function router() {
   let route = window.location.hash || "#/login";
@@ -45,7 +61,7 @@ async function router() {
     return navigate("#/home");
   }
 
-  const isTopLevel = ["#/home", "#/history", "#/profile"].includes(base);
+  const isTopLevel = ["#/home", "#/map", "#/reservations", "#/history", "#/profile"].includes(base);
   backBtn.classList.toggle("visible", !isTopLevel && !AUTH_FREE_ROUTES.includes(base));
   bottomNav.style.display = AUTH_FREE_ROUTES.includes(base) ? "none" : "flex";
 
@@ -54,9 +70,8 @@ async function router() {
   });
 
   const handler = routes[base] || renderHome;
-  try {
-    await handler();
-  } catch (err) {
+  try { await handler(); }
+  catch (err) {
     view.innerHTML = `<div class="card"><p class="error-text">${escapeHtml(err.message)}</p></div>`;
   }
 }
@@ -68,28 +83,14 @@ bottomNav.addEventListener("click", (e) => {
   if (btn) navigate(btn.dataset.route);
 });
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str ?? "";
-  return div.innerHTML;
-}
-
-function setTitle(title) {
-  headerTitle.textContent = title;
-}
-
-function showLoading() {
-  view.innerHTML = `<div class="spinner"></div>`;
-}
-
 // ---------------------------------------------------------------------------
-// LOGIN / REGISTRO / RECUPERAR
+// LOGIN / REGISTER / FORGOT
 // ---------------------------------------------------------------------------
 function renderLogin() {
   setTitle("Smart Parking");
   view.innerHTML = `
-    <div class="card hero center" style="margin-top:8px;">
-      <h2>🅿️ Smart Parking</h2>
+    <div class="card hero" style="text-align:center">
+      <h2>Smart Parking</h2>
       <p>Encuentra y reserva tu espacio en segundos</p>
     </div>
     <div class="card">
@@ -103,8 +104,8 @@ function renderLogin() {
       </div>
       <p class="error-text" id="login-error"></p>
       <button class="btn" id="login-submit">Iniciar sesión</button>
-      <button class="link-btn" id="go-forgot" style="width:100%;">¿Olvidaste tu contraseña?</button>
-      <button class="link-btn" id="go-register" style="width:100%;">Crear una cuenta nueva</button>
+      <button class="link-btn" id="go-forgot" style="width:100%;text-align:center">¿Olvidaste tu contraseña?</button>
+      <button class="link-btn" id="go-register" style="width:100%;text-align:center">Crear una cuenta nueva</button>
     </div>
   `;
 
@@ -124,9 +125,7 @@ function renderLogin() {
       Api.setToken(data.token);
       state.user = data.user;
       navigate("#/home");
-    } catch (err) {
-      errEl.textContent = err.message;
-    }
+    } catch (err) { errEl.textContent = err.message; }
   };
 }
 
@@ -140,7 +139,7 @@ function renderRegister() {
       <div class="input-group"><label>Contraseña</label><input id="r-password" type="password" /></div>
       <p class="error-text" id="r-error"></p>
       <button class="btn" id="r-submit">Registrarme</button>
-      <button class="link-btn" id="r-goLogin" style="width:100%;">Ya tengo cuenta</button>
+      <button class="link-btn" id="r-goLogin" style="width:100%;text-align:center">Ya tengo cuenta</button>
     </div>
   `;
   document.getElementById("r-goLogin").onclick = () => navigate("#/login");
@@ -157,9 +156,7 @@ function renderRegister() {
       Api.setToken(data.token);
       state.user = data.user;
       navigate("#/home");
-    } catch (err) {
-      errEl.textContent = err.message;
-    }
+    } catch (err) { errEl.textContent = err.message; }
   };
 }
 
@@ -171,7 +168,7 @@ function renderForgot() {
       <div class="input-group"><label>Correo electrónico</label><input id="f-email" type="email" /></div>
       <p class="success-text" id="f-msg"></p>
       <button class="btn" id="f-submit">Enviar</button>
-      <button class="link-btn" id="f-goLogin" style="width:100%;">Volver a iniciar sesión</button>
+      <button class="link-btn" id="f-goLogin" style="width:100%;text-align:center">Volver a iniciar sesión</button>
     </div>
   `;
   document.getElementById("f-goLogin").onclick = () => navigate("#/login");
@@ -182,94 +179,143 @@ function renderForgot() {
         email: document.getElementById("f-email").value.trim(),
       });
       msgEl.textContent = data.message;
-    } catch (err) {
-      msgEl.textContent = err.message;
-    }
+    } catch (err) { msgEl.textContent = err.message; }
   };
 }
 
 // ---------------------------------------------------------------------------
-// HOME - mapa geográfico (Leaflet) + lista de establecimientos
+// HOME
 // ---------------------------------------------------------------------------
 function availabilityLevel(av) {
-  if (av.TOTAL === 0) return "low";
+  if (!av || av.TOTAL === 0) return "low";
   const ratio = av.AVAILABLE / av.TOTAL;
   if (ratio >= 0.5) return "high";
   if (ratio >= 0.2) return "mid";
   return "low";
 }
 
-function makePinIcon(selected) {
+function makePinIcon(selected, letter) {
   return L.divIcon({
     className: "",
-    html: `<div class="map-pin-icon${selected ? " selected" : ""}"><span>🅿️</span></div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 28],
-    popupAnchor: [0, -26],
+    html: `<div class="map-pin-icon${selected ? " selected" : ""}"><span>${escapeHtml((letter || "P").charAt(0).toUpperCase())}</span></div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 24],
+    popupAnchor: [0, -22],
   });
 }
 
 async function renderHome() {
-  setTitle("Parqueos disponibles");
+  setTitle("Smart Parking");
   showLoading();
+
   const { establishments } = await Api.get("/establishments");
   state.establishments = establishments;
 
+  const userFirst = state.user?.first_name || "";
+  const greeting = userFirst ? `¡Hola, ${escapeHtml(userFirst)}!` : "¡Hola!";
+
   if (establishments.length === 0) {
-    view.innerHTML = `<div class="card empty-state"><span class="emoji">🅿️</span><p>No hay establecimientos registrados todavía.</p></div>`;
+    view.innerHTML = `
+      <div class="card hero">
+        <h2>${greeting}</h2>
+        <p>¿A dónde vamos hoy?</p>
+      </div>
+      <div class="card empty-state">
+        <span class="mark">Sin establecimientos</span>
+        <p>No hay establecimientos registrados todavía.</p>
+      </div>`;
     return;
   }
 
-  const withCoords = establishments.filter((e) => e.latitude != null && e.longitude != null);
+  const withCoords = establishments.filter(e => e.latitude != null && e.longitude != null);
 
   view.innerHTML = `
+    <div class="card hero" style="margin-top:0">
+      <h2>${greeting}</h2>
+      <p>¿A dónde vamos hoy?</p>
+    </div>
+
+    <div class="input-group" style="margin-bottom:14px">
+      <input type="text" placeholder="Buscar parqueos, centros comerciales..." />
+    </div>
+
+    <div class="home-actions">
+      <div class="home-action a-blue" id="qa-map">
+        <div class="home-action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-8-8-13a8 8 0 1116 0c0 5-8 13-8 13z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        </div>
+        <span>Mapa</span>
+      </div>
+      <div class="home-action a-green" id="qa-reserve">
+        <div class="home-action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <span>Reservar</span>
+      </div>
+      <div class="home-action a-yellow" id="qa-myreservations">
+        <div class="home-action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <span>Mis reservas</span>
+      </div>
+      <div class="home-action a-slate" id="qa-profile">
+        <div class="home-action-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        </div>
+        <span>Perfil</span>
+      </div>
+    </div>
+
     ${withCoords.length > 0 ? '<div id="geo-map"></div>' : ""}
-    <div class="card" id="establishment-list"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px">
+      <h3 style="margin:0">Parqueos cercanos</h3>
+      <a href="#/map" class="link-btn" style="font-size:12px">Ver todos</a>
+    </div>
+    <div class="card" id="establishment-list" style="padding:6px 8px"></div>
   `;
 
+  document.getElementById("qa-map").onclick          = () => navigate("#/map");
+  document.getElementById("qa-myreservations").onclick = () => navigate("#/reservations");
+  document.getElementById("qa-profile").onclick        = () => navigate("#/profile");
+  document.getElementById("qa-reserve").onclick        = () => {
+    if (establishments[0]) {
+      state.currentEstablishmentId = establishments[0].id;
+      navigate("#/establishment");
+    }
+  };
+
   const listEl = document.getElementById("establishment-list");
-  listEl.innerHTML = establishments
-    .map((e) => {
-      const level = availabilityLevel(e.availability);
-      return `
+  listEl.innerHTML = establishments.map(e => {
+    const level = availabilityLevel(e.availability);
+    return `
       <div class="establishment-item" data-id="${e.id}">
-        <div class="establishment-icon">🅿️</div>
+        <div class="establishment-icon">${escapeHtml((e.name || "P").charAt(0).toUpperCase())}</div>
         <div class="establishment-info">
           <h3>${escapeHtml(e.name)}</h3>
-          <p style="margin:0;">${escapeHtml(e.address || "Dirección no especificada")}</p>
-          <span class="availability-pill ${level}">${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres</span>
+          <p>${escapeHtml(e.address || "Dirección no especificada")}</p>
+          <span class="availability-pill ${level}">● ${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres</span>
         </div>
       </div>`;
-    })
-    .join("");
+  }).join("");
 
-  listEl.querySelectorAll(".establishment-item").forEach((item) => {
+  listEl.querySelectorAll(".establishment-item").forEach(item => {
     item.onclick = () => {
       state.currentEstablishmentId = item.dataset.id;
       navigate("#/establishment");
     };
   });
 
-  // Mapa geográfico: un pin por cada establecimiento con coordenadas.
   if (withCoords.length > 0) {
     const mapEl = document.getElementById("geo-map");
-    const map = L.map(mapEl, { zoomControl: true }).setView(
-      [withCoords[0].latitude, withCoords[0].longitude],
-      13
-    );
-    state.geoMap = map;
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap",
-      maxZoom: 19,
-    }).addTo(map);
+    const map = L.map(mapEl, { zoomControl: false, attributionControl: false })
+      .setView([withCoords[0].latitude, withCoords[0].longitude], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
 
     const markers = [];
-    withCoords.forEach((e) => {
-      const marker = L.marker([e.latitude, e.longitude], { icon: makePinIcon(false) }).addTo(map);
-      marker.bindPopup(
-        `<strong>${escapeHtml(e.name)}</strong><br/>${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres`
-      );
+    withCoords.forEach(e => {
+      const marker = L.marker([e.latitude, e.longitude], { icon: makePinIcon(false, e.name) }).addTo(map);
+      marker.bindPopup(`<strong>${escapeHtml(e.name)}</strong><br>${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres`);
       marker.on("click", () => {
         state.currentEstablishmentId = e.id;
         navigate("#/establishment");
@@ -285,35 +331,116 @@ async function renderHome() {
 }
 
 // ---------------------------------------------------------------------------
-// ESTABLECIMIENTO - mapa visual de espacios (cuadrícula por parqueo/fila)
+// MAP — pantalla de mapa grande con parqueos cercanos
+// ---------------------------------------------------------------------------
+async function renderMap() {
+  setTitle("Parqueos cercanos");
+  showLoading();
+
+  const { establishments } = await Api.get("/establishments");
+  state.establishments = establishments;
+
+  const withCoords = establishments.filter(e => e.latitude != null && e.longitude != null);
+
+  view.innerHTML = `
+    <div class="input-group" style="margin-bottom:14px">
+      <input type="text" placeholder="Buscar en esta zona..." />
+    </div>
+
+    ${withCoords.length > 0
+      ? '<div id="mini-map" style="height:320px"></div>'
+      : '<div class="card"><p class="muted">Ningún establecimiento tiene coordenadas registradas todavía.</p></div>'}
+
+    <h3 style="margin:16px 0 8px">Todos los parqueos</h3>
+    <div id="map-establishment-list"></div>
+  `;
+
+  const listEl = document.getElementById("map-establishment-list");
+  if (establishments.length === 0) {
+    listEl.innerHTML = `<div class="card empty-state"><span class="mark">Sin parqueos</span><p>No hay parqueos registrados.</p></div>`;
+  } else {
+    listEl.innerHTML = establishments.map(e => {
+      const level = availabilityLevel(e.availability);
+      return `
+        <div class="card establishment-card" data-id="${e.id}" style="cursor:pointer">
+          <div style="display:flex;gap:13px;align-items:center">
+            <div class="establishment-icon">${escapeHtml((e.name || "P").charAt(0).toUpperCase())}</div>
+            <div class="establishment-info" style="flex:1">
+              <h3>${escapeHtml(e.name)}</h3>
+              <p>${escapeHtml(e.address || "Dirección no especificada")}</p>
+              <span class="availability-pill ${level}">● ${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres</span>
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+
+    listEl.querySelectorAll(".establishment-card").forEach(card => {
+      card.onclick = () => {
+        state.currentEstablishmentId = card.dataset.id;
+        navigate("#/establishment");
+      };
+    });
+  }
+
+  if (withCoords.length > 0) {
+    const mapEl = document.getElementById("mini-map");
+    const map = L.map(mapEl, { zoomControl: true, attributionControl: false })
+      .setView([withCoords[0].latitude, withCoords[0].longitude], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+
+    const markers = [];
+    withCoords.forEach(e => {
+      const marker = L.marker([e.latitude, e.longitude], { icon: makePinIcon(false, e.name) }).addTo(map);
+      marker.bindPopup(`<strong>${escapeHtml(e.name)}</strong><br>${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres`);
+      marker.on("click", () => {
+        state.currentEstablishmentId = e.id;
+        navigate("#/establishment");
+      });
+      markers.push(marker);
+    });
+
+    if (markers.length > 1) {
+      const group = L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.25));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ESTABLECIMIENTO — mapa visual de espacios y reserva
 // ---------------------------------------------------------------------------
 async function renderEstablishment() {
   setTitle("Mapa del parqueo");
   showLoading();
+
   const id = state.currentEstablishmentId;
+  if (!id) return navigate("#/home");
+
   const { parkings, establishment } = await Api.get(`/establishments/${id}/map`);
   state.selectedSpaceId = null;
 
-  let html = `<div class="card"><h2>${escapeHtml(establishment.name)}</h2>
-    <p>Selecciona un espacio disponible para reservarlo.</p>
-    <div class="legend-row">
-      <span><span class="dot AVAILABLE"></span>Libre</span>
-      <span><span class="dot RESERVED"></span>Reservado</span>
-      <span><span class="dot OCCUPIED"></span>Ocupado</span>
-      <span><span class="dot BLOCKED"></span>Bloqueado</span>
-    </div>
-  </div>`;
+  let html = `
+    <div class="card">
+      <h2>${escapeHtml(establishment.name)}</h2>
+      <p>Selecciona un espacio disponible para reservarlo.</p>
+      <div class="legend-row">
+        <span><span class="dot AVAILABLE"></span>Libre</span>
+        <span><span class="dot RESERVED"></span>Reservado</span>
+        <span><span class="dot OCCUPIED"></span>Ocupado</span>
+        <span><span class="dot BLOCKED"></span>Bloqueado</span>
+      </div>
+    </div>`;
 
   const parkingNames = Object.keys(parkings);
   if (parkingNames.length === 0) {
-    html += `<div class="card empty-state"><p>Este establecimiento todavía no tiene espacios configurados.</p></div>`;
+    html += `<div class="card empty-state"><span class="mark">Sin espacios</span><p>Este establecimiento todavía no tiene espacios configurados.</p></div>`;
     view.innerHTML = html;
     return;
   }
 
   html += `<div class="card">`;
   for (const parkingName of parkingNames) {
-    html += `<div class="parking-block"><div class="parking-block-title">${escapeHtml(parkingName)}</div>`;
+    html += `<div class="parking-block-title">${escapeHtml(parkingName)}</div>`;
     const rows = parkings[parkingName];
     for (const [rowLabel, spaces] of Object.entries(rows)) {
       html += `<div class="row-label">${escapeHtml(rowLabel)}</div><div class="space-grid">`;
@@ -322,17 +449,16 @@ async function renderEstablishment() {
       }
       html += `</div>`;
     }
-    html += `</div>`;
   }
   html += `</div>
     <button class="btn" id="reserve-btn" disabled>Reservar espacio seleccionado</button>`;
 
   view.innerHTML = html;
 
-  view.querySelectorAll(".space-cell").forEach((cell) => {
+  view.querySelectorAll(".space-cell").forEach(cell => {
     cell.onclick = () => {
       if (cell.dataset.status !== "AVAILABLE") return;
-      view.querySelectorAll(".space-cell").forEach((c) => c.classList.remove("selected"));
+      view.querySelectorAll(".space-cell").forEach(c => c.classList.remove("selected"));
       cell.classList.add("selected");
       state.selectedSpaceId = cell.dataset.id;
       document.getElementById("reserve-btn").disabled = false;
@@ -342,125 +468,60 @@ async function renderEstablishment() {
   document.getElementById("reserve-btn").onclick = () => navigate("#/reserve");
 }
 
+// ---------------------------------------------------------------------------
+// RESERVE — confirmar reserva
+// ---------------------------------------------------------------------------
 async function renderReserveConfirm() {
-  setTitle("Confirmar reserva");
-  if (!state.selectedSpaceId) return navigate("#/establishment");
+  setTitle("Reservar espacio");
+  if (!state.selectedSpaceId) return navigate("#/home");
+
+  const est = state.establishments.find(e => String(e.id) === String(state.currentEstablishmentId));
+  const estName = est?.name || "Establecimiento";
+  const estAddress = est?.address || "";
 
   view.innerHTML = `
-    <div class="card center">
-      <h2>Confirmar reserva</h2>
-      <p>Se generará un código QR único que deberás mostrar al ingresar. La reserva vence si no la usas a tiempo.</p>
-      <p class="error-text" id="reserve-error"></p>
-      <button class="btn" id="confirm-btn">Confirmar reserva</button>
-      <button class="btn secondary" id="cancel-btn" style="margin-top:10px;">Cancelar</button>
+    <div class="card hero">
+      <h2>${escapeHtml(estName)}</h2>
+      <p>${escapeHtml(estAddress || "Confirma tu reserva")}</p>
     </div>
+
+    <div class="card">
+      <h3>Detalle de la reserva</h3>
+      <div class="info-row"><span>Espacio seleccionado</span><span id="conf-space">—</span></div>
+      <div class="info-row"><span>Duración</span><span>30 minutos</span></div>
+      <div class="info-row"><span>Precio estimado</span><span>—</span></div>
+    </div>
+
+    <p class="error-text" id="reserve-error"></p>
+
+    <button class="btn yellow" id="confirm-btn">Confirmar reserva</button>
+    <button class="btn secondary" id="cancel-btn" style="margin-top:10px">Cancelar</button>
   `;
 
   document.getElementById("cancel-btn").onclick = () => navigate("#/establishment");
-  document.getElementById("confirm-btn").onclick = () => navigate("#/payment");
-}
-
-// ---------------------------------------------------------------------------
-// PAGO POR ADELANTADO (DEMOSTRACIÓN)
-// ---------------------------------------------------------------------------
-// Este formulario es una SIMULACIÓN para el proyecto académico: valida el
-// formato de los datos de la tarjeta y "aprueba" el pago en el navegador,
-// pero no se conecta con ningún banco ni procesador de pagos real, y el
-// número completo de la tarjeta nunca se envía al backend ni se guarda en
-// ninguna base de datos. Para un pago real habría que integrar un
-// procesador con cuenta de comercio (Stripe, Onvopay, etc.).
-function luhnCheck(num) {
-  const digits = num.replace(/\D/g, "").split("").reverse().map(Number);
-  let sum = 0;
-  digits.forEach((d, i) => {
-    if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
-    sum += d;
-  });
-  return digits.length >= 13 && sum % 10 === 0;
-}
-
-async function renderPayment() {
-  setTitle("Pago del espacio");
-  if (!state.selectedSpaceId) return navigate("#/establishment");
-
-  view.innerHTML = `
-    <div class="card">
-      <h2>Pago por adelantado</h2>
-      <p class="muted">Formulario de demostración — no se procesa un cobro real ni se guarda el número completo de la tarjeta.</p>
-      <div class="input-group"><label>Nombre en la tarjeta</label><input id="pay-name" type="text" placeholder="Como aparece en la tarjeta" /></div>
-      <div class="input-group"><label>Número de tarjeta</label><input id="pay-number" type="text" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" /></div>
-      <div style="display:flex;gap:12px;">
-        <div class="input-group" style="flex:1;"><label>Vencimiento (MM/AA)</label><input id="pay-exp" type="text" maxlength="5" placeholder="MM/AA" /></div>
-        <div class="input-group" style="flex:1;"><label>CVV</label><input id="pay-cvv" type="text" inputmode="numeric" maxlength="4" placeholder="123" /></div>
-      </div>
-      <p class="error-text" id="pay-error"></p>
-      <p class="success-text" id="pay-success"></p>
-      <button class="btn" id="pay-submit">Pagar y confirmar reserva</button>
-      <button class="btn secondary" id="pay-cancel" style="margin-top:10px;">Cancelar</button>
-    </div>
-  `;
-
-  // Formatea el número en grupos de 4 mientras se escribe.
-  document.getElementById("pay-number").oninput = (e) => {
-    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 16).replace(/(\d{4})(?=\d)/g, "$1 ");
-  };
-  document.getElementById("pay-exp").oninput = (e) => {
-    let v = e.target.value.replace(/\D/g, "").slice(0, 4);
-    if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2);
-    e.target.value = v;
-  };
-
-  document.getElementById("pay-cancel").onclick = () => navigate("#/reserve");
-
-  document.getElementById("pay-submit").onclick = async () => {
-    const errEl = document.getElementById("pay-error");
-    const okEl = document.getElementById("pay-success");
-    errEl.textContent = ""; okEl.textContent = "";
-
-    const name = document.getElementById("pay-name").value.trim();
-    const number = document.getElementById("pay-number").value.replace(/\s/g, "");
-    const exp = document.getElementById("pay-exp").value.trim();
-    const cvv = document.getElementById("pay-cvv").value.trim();
-
-    if (!name) { errEl.textContent = "Escribe el nombre tal como aparece en la tarjeta."; return; }
-    if (!/^\d{13,16}$/.test(number) || !luhnCheck(number)) { errEl.textContent = "El número de tarjeta no es válido."; return; }
-    const expMatch = exp.match(/^(\d{2})\/(\d{2})$/);
-    if (!expMatch) { errEl.textContent = "Formato de vencimiento inválido. Usa MM/AA."; return; }
-    const [, mm, yy] = expMatch;
-    const now = new Date();
-    const expDate = new Date(2000 + Number(yy), Number(mm), 0);
-    if (Number(mm) < 1 || Number(mm) > 12 || expDate < now) { errEl.textContent = "La tarjeta está vencida o el mes no es válido."; return; }
-    if (!/^\d{3,4}$/.test(cvv)) { errEl.textContent = "El CVV no es válido."; return; }
-
-    const submitBtn = document.getElementById("pay-submit");
-    submitBtn.disabled = true;
-    submitBtn.textContent = "Procesando pago...";
-
-    // Simulación: una pequeña espera para que se sienta como un cobro real.
-    await new Promise((r) => setTimeout(r, 900));
-    okEl.textContent = "Pago aprobado. Confirmando tu reserva...";
-
+  document.getElementById("confirm-btn").onclick = async () => {
+    const errEl = document.getElementById("reserve-error");
+    errEl.textContent = "";
     try {
       const data = await Api.post("/reservations", { spaceId: state.selectedSpaceId });
       state.lastReservationId = data.reservation.id;
       state.lastQrImage = data.qr.image;
       navigate("#/qr");
-    } catch (err) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Pagar y confirmar reserva";
-      okEl.textContent = "";
-      errEl.textContent = err.message;
-    }
+    } catch (err) { errEl.textContent = err.message; }
   };
 }
 
+// ---------------------------------------------------------------------------
+// QR — mostrar el código generado
+// ---------------------------------------------------------------------------
 async function renderQr() {
   setTitle("Tu código QR");
   if (!state.lastQrImage) return navigate("#/home");
+
   view.innerHTML = `
     <div class="card center">
       <h2>¡Reserva confirmada!</h2>
-      <p>Muestra este código al guarda de seguridad al ingresar.</p>
+      <p>Muestra este código al guarda al ingresar.</p>
       <img class="qr-image" src="${state.lastQrImage}" alt="Código QR de la reserva" />
       <button class="btn" id="go-home-btn">Ir al inicio</button>
     </div>
@@ -469,54 +530,58 @@ async function renderQr() {
 }
 
 // ---------------------------------------------------------------------------
-// HISTORIAL - reservas pasadas
+// HISTORY — listado de reservas del usuario
 // ---------------------------------------------------------------------------
 async function renderHistory() {
-  setTitle("Historial");
+  setTitle("Mis reservas");
   showLoading();
+
   const { reservations } = await Api.get("/reservations/mine");
 
-  if (reservations.length === 0) {
-    view.innerHTML = `<div class="card empty-state"><p>Todavía no tienes reservas.</p></div>`;
+  if (!reservations || reservations.length === 0) {
+    view.innerHTML = `<div class="card empty-state"><span class="mark">Sin reservas</span><p>Todavía no tienes reservas.</p></div>`;
     return;
   }
 
   view.innerHTML = `<div class="card">` +
-    reservations
-      .map(
-        (r) => `
+    reservations.map(r => `
       <div class="list-item">
         <div>
-          <strong>${escapeHtml(r.parking_name)}</strong>
-          <p style="margin:2px 0;">Espacio ${escapeHtml(r.space_code)} · ${new Date(r.created_at).toLocaleString()}</p>
+          <strong>${escapeHtml(r.parking_name || "Parqueo")}</strong>
+          <p>Espacio ${escapeHtml(r.space_code || "")} · ${new Date(r.created_at).toLocaleString()}</p>
         </div>
         <span class="badge ${r.status}">${r.status}</span>
-      </div>`
-      )
-      .join("") +
+      </div>`).join("") +
     `</div>`;
 }
 
 // ---------------------------------------------------------------------------
-// PERFIL
+// PROFILE
 // ---------------------------------------------------------------------------
 async function renderProfile() {
   setTitle("Mi perfil");
+  showLoading();
+
   const { user } = await Api.get("/auth/me");
   state.user = user;
+
   const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
+
   view.innerHTML = `
     <div class="card">
       <h2>${escapeHtml(fullName || user.email)}</h2>
       <p>${escapeHtml(user.email)}</p>
       <p>${escapeHtml(user.phone || "Sin teléfono registrado")}</p>
     </div>
+
     <button class="btn danger" id="logout-btn">Cerrar sesión</button>
   `;
   document.getElementById("logout-btn").onclick = () => {
     Api.clearToken();
+    state.user = null;
     navigate("#/login");
   };
 }
 
+// Arranca el router
 router();
