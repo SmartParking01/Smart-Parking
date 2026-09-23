@@ -1,28 +1,50 @@
 // =============================================================================
-// theme.js (user) — Rediseña el HOME como la foto. NO toca la lógica de app.js.
+// theme.js (user) — Decoración visual. NO toca la lógica de app.js.
 // =============================================================================
 (function () {
 
-  // Mapeo foto ↔ establecimiento (archivo aparte: parking-images.js)
+  // ---------------------------------------------------------------
+  // Mapeo foto ↔ establecimiento (lee parking-images.js)
+  // ---------------------------------------------------------------
   function getImageFor(establishmentName, index) {
     const map = window.PARKING_IMAGES || {};
-    // 1) Coincidencia exacta
-    if (map[establishmentName]) return map[establishmentName];
-    // 2) Coincidencia por palabras clave (contains, case-insensitive)
-    const nameLower = (establishmentName || "").toLowerCase();
+
+    // Normalizar: minúsculas y sin tildes
+    const normalize = (s) => (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    const nameNorm = normalize(establishmentName);
+
+    // 1) Coincidencia exacta (normalizada)
     for (const key in map) {
-      if (nameLower.includes(key.toLowerCase())) return map[key];
+      if (normalize(key) === nameNorm) return map[key];
     }
+
+    // 2) Coincidencia parcial: la clave más larga que aparezca
+    let bestMatch = null;
+    let bestLen = 0;
+    for (const key in map) {
+      const keyNorm = normalize(key);
+      if (keyNorm.length > bestLen && nameNorm.includes(keyNorm)) {
+        bestMatch = map[key];
+        bestLen = keyNorm.length;
+      }
+    }
+    if (bestMatch) return bestMatch;
+
     // 3) Fallback por índice
     const FALLBACKS = [
-      "assets/parking-u-latina.jpg",
+      "assets/parking-u-latina.avif",
       "assets/parking-u-fidelitas.jpg",
       "assets/parking-clinica-biblica.jpg",
       "assets/parking-hospital-cima.jpg",
       "assets/parking-vista-real.jpg",
-      "assets/parking-villas-del-rio.jpg",
+      "assets/parking-villas-del-rio.webp",
       "assets/parking-trejos-montealegre.jpg",
-      "assets/parking-bosques-lindora.jpg"
+      "assets/parking-bosques-lindora.webp"
     ];
     return FALLBACKS[index % FALLBACKS.length];
   }
@@ -33,7 +55,7 @@
   }
 
   // ---------------------------------------------------------------
-  // HOME: rediseñar
+  // HOME: rediseñar como la foto
   // ---------------------------------------------------------------
   function renderHome() {
     const view = document.getElementById("app-view");

@@ -1,5 +1,5 @@
 /* =========================================================================
-   Smart Parking · User App — Dark Premium (como la foto de referencia)
+   Smart Parking · User App — Dark Premium
    ========================================================================= */
 :root{
   --bg:#0A0F1F;
@@ -109,7 +109,6 @@ body{
   object-fit:contain;
   flex-shrink:0;
 }
-/* Truco para el PNG con fondo blanco: se disuelve sobre el header oscuro */
 #app-logo.logo-clean{
   mix-blend-mode:screen;
   filter:brightness(1.05) contrast(1.05);
@@ -426,7 +425,7 @@ p{
   border:1px solid rgba(239,68,68,.35);
 }
 
-/* ============ ESTABLECIMIENTOS ============ */
+/* ============ ESTABLECIMIENTOS (vista lista) ============ */
 .establishment-item{
   display:flex;
   gap:13px;
@@ -705,15 +704,8 @@ p{
   margin-bottom:8px;
 }
 
-/* ============ RESPONSIVE ============ */
-@media (max-width:460px){
-  #phone{ box-shadow:none; }
-  .qr-image{ width:200px;height:200px; }
-  h2{ font-size:20px; }
-}
-
 /* =========================================================================
-   HOME rediseñado (parqueos cercanos con foto, sin mapa arriba)
+   HOME REDISEÑADO — parqueos cercanos con foto, sin mapa arriba
    ========================================================================= */
 
 /* --- Hero saludo --- */
@@ -839,7 +831,7 @@ p{
 }
 .ha-slate svg{ color:var(--text-2); }
 
-/* --- Encabezado de sección --- */
+/* --- Encabezado sección --- */
 .home-section-head{
   display:flex;
   justify-content:space-between;
@@ -961,4 +953,11 @@ p{
   background:rgba(239,68,68,.15);
   color:#FCA5A5;
   border-color:rgba(239,68,68,.35);
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:460px){
+  #phone{ box-shadow:none; }
+  .qr-image{ width:200px;height:200px; }
+  h2{ font-size:20px; }
 }
