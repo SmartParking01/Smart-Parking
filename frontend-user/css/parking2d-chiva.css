@@ -1,0 +1,140 @@
+/* =========================================================================
+   Mejora visual de la cuadrícula de espacios (2D) — capa ADICIONAL.
+   Se carga después de css/style.css y solo afecta selectores propios del
+   parqueo (.parking-block, .space-grid, .space-cell, .legend-row,
+   .row-label). No redefine colores nuevos: usa las mismas variables
+   (var(--available), var(--primary), etc.) que ya existen.
+   ========================================================================= */
+
+.parking-block {
+  background: var(--card);
+  border-radius: var(--radius, 16px);
+  padding: 14px 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.parking-block-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  color: #fff;
+  background: linear-gradient(120deg, var(--primary), var(--primary-dark));
+  padding: 9px 14px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+.parking-block-title::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--available);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+
+.legend-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.legend-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.legend-row .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+.row-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin: 14px 2px 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--primary);
+}
+
+.space-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 10px;
+}
+
+.space-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+}
+.space-cell::after {
+  /* franja diagonal tipo "señalización de piso" */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.space-cell.AVAILABLE {
+  background: linear-gradient(150deg, var(--available), #16a34a);
+  box-shadow: 0 6px 14px rgba(34,197,94,0.35);
+  animation: p2d-pulse 2.4s ease-in-out infinite;
+}
+.space-cell.RESERVED {
+  background: linear-gradient(150deg, var(--reserved), #c9820a);
+  opacity: 1;
+  box-shadow: 0 4px 10px rgba(245,165,36,0.25);
+}
+.space-cell.OCCUPIED {
+  background: linear-gradient(150deg, var(--primary), var(--primary-dark));
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.space-cell.BLOCKED {
+  background: repeating-linear-gradient(45deg, var(--blocked), var(--blocked) 6px, #8890a3 6px, #8890a3 12px);
+  opacity: 1;
+}
+
+.space-cell.AVAILABLE:hover {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 10px 20px rgba(34,197,94,0.45);
+}
+.space-cell.selected {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--text), 0 8px 16px rgba(0,0,0,0.3);
+  animation: none;
+}
+
+@keyframes p2d-pulse {
+  0%, 100% { box-shadow: 0 6px 14px rgba(34,197,94,0.35); }
+  50% { box-shadow: 0 6px 20px rgba(34,197,94,0.6); }
+}
+
+/* En pantallas angostas (el teléfono simulado) dejamos celdas un poco más pequeñas */
+@media (max-width: 380px) {
+  .space-grid { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); }
+}

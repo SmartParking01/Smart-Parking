@@ -454,6 +454,8 @@ async function renderPayment() {
       const data = await Api.post("/reservations", { spaceId: state.selectedSpaceId });
       state.lastReservationId = data.reservation.id;
       state.lastQrImage = data.qr.image;
+      state.lastQrReservation = data.reservation;
+      state.viewReservationId = null;
       navigate("#/qr");
     } catch (err) {
       submitBtn.disabled = false;
@@ -466,16 +468,33 @@ async function renderPayment() {
 
 async function renderQr() {
   setTitle("Tu código QR");
+
+  // Si venimos del Historial (viendo una reserva pasada/vigente), pedimos
+  // el QR de nuevo al backend en vez de depender de la memoria del
+  // navegador — así sigue disponible aunque se haya cerrado la app.
+  if (state.viewReservationId) {
+    try {
+      const data = await Api.get(`/reservations/${state.viewReservationId}/qr`);
+      state.lastQrImage = data.qr.image;
+      state.lastQrReservation = data.reservation;
+    } catch (err) {
+      view.innerHTML = `<div class="card center"><p class="error-text">${escapeHtml(err.message)}</p></div>`;
+      return;
+    }
+  }
+
   if (!state.lastQrImage) return navigate("#/home");
+  const r = state.lastQrReservation;
   view.innerHTML = `
     <div class="card center">
       <h2>¡Reserva confirmada!</h2>
       <p>Muestra este código al guarda de seguridad al ingresar.</p>
+      ${r ? `<p><strong>${escapeHtml(r.parking_name || "")}</strong> · Espacio ${escapeHtml(r.space_code || "")}</p>` : ""}
       <img class="qr-image" src="${state.lastQrImage}" alt="Código QR de la reserva" />
       <button class="btn" id="go-home-btn">Ir al inicio</button>
     </div>
   `;
-  document.getElementById("go-home-btn").onclick = () => navigate("#/home");
+  document.getElementById("go-home-btn").onclick = () => { state.viewReservationId = null; navigate("#/home"); };
 }
 
 // ---------------------------------------------------------------------------
@@ -491,6 +510,10 @@ async function renderHistory() {
     return;
   }
 
+  // Solo tiene sentido volver a mostrar el QR mientras la reserva sigue
+  // vigente (todavía no se usó, canceló o venció).
+  const QR_VISIBLE_STATUSES = ["CONFIRMED", "PENDING", "ACTIVE"];
+
   view.innerHTML = `<div class="card">` +
     reservations
       .map(
@@ -500,11 +523,21 @@ async function renderHistory() {
           <strong>${escapeHtml(r.parking_name)}</strong>
           <p style="margin:2px 0;">Espacio ${escapeHtml(r.space_code)} · ${new Date(r.created_at).toLocaleString()}</p>
         </div>
-        <span class="badge ${r.status}">${r.status}</span>
+        <div style="text-align:right;">
+          <span class="badge ${r.status}">${r.status}</span>
+          ${QR_VISIBLE_STATUSES.includes(r.status) ? `<button class="link-btn" data-view-qr="${r.id}" style="display:block;margin-top:4px;">Ver código QR</button>` : ""}
+        </div>
       </div>`
       )
       .join("") +
     `</div>`;
+
+  view.querySelectorAll("[data-view-qr]").forEach((btn) => {
+    btn.onclick = () => {
+      state.viewReservationId = btn.dataset.viewQr;
+      navigate("#/qr");
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
