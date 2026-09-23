@@ -101,15 +101,6 @@
       </div>
 
       <div class="home-actions">
-        <button class="home-action" data-action="map">
-          <span class="ha-icon ha-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s-8-8-8-13a8 8 0 1116 0c0 5-8 13-8 13z"/>
-              <circle cx="12" cy="9" r="2.5"/>
-            </svg>
-          </span>
-          <span>Mapa</span>
-        </button>
         <button class="home-action" data-action="reserve">
           <span class="ha-icon ha-green">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -140,12 +131,16 @@
 
       <div class="home-section-head">
         <h3>Parqueos cercanos</h3>
-        <a>Ver todos</a>
+        <a id="home-see-all">Ver todos</a>
       </div>
 
-      <div class="home-parking-list">
-        ${establishments.map((e, i) => `
-          <div class="home-parking" data-idx="${i}">
+      <div class="home-parking-list" id="home-parking-list"></div>
+    `;
+
+    function renderParkingList(items) {
+      const list = document.getElementById("home-parking-list");
+      list.innerHTML = items.map((e, i) => `
+          <div class="home-parking" data-idx="${e.__idx}">
             <div class="home-parking-img" style="background-image:url('${e.img}')"></div>
             <div class="home-parking-body">
               <h4>${escapeHtml(e.name)}</h4>
@@ -156,16 +151,29 @@
               <span class="home-parking-pill ${e.availClass}">${escapeHtml(e.availability || "Disponible")}</span>
             </div>
           </div>
-        `).join("")}
-      </div>
-    `;
+        `).join("");
 
-    view.querySelectorAll(".home-parking").forEach((card, idx) => {
-      card.onclick = () => {
-        const original = originalItems[idx];
-        if (original) original.click();
+      list.querySelectorAll(".home-parking").forEach((card) => {
+        card.onclick = () => {
+          const original = originalItems[Number(card.dataset.idx)];
+          if (original) original.click();
+        };
+      });
+    }
+
+    const establishmentsIndexed = establishments.map((e, i) => ({ ...e, __idx: i }));
+    const PREVIEW_COUNT = 3;
+    renderParkingList(establishmentsIndexed.slice(0, PREVIEW_COUNT));
+
+    const seeAllLink = document.getElementById("home-see-all");
+    if (establishmentsIndexed.length <= PREVIEW_COUNT) {
+      seeAllLink.style.display = "none";
+    } else {
+      seeAllLink.onclick = () => {
+        renderParkingList(establishmentsIndexed);
+        seeAllLink.style.display = "none";
       };
-    });
+    }
 
     view.querySelectorAll(".home-action").forEach((btn) => {
       btn.onclick = () => {
@@ -179,9 +187,6 @@
         } else if (action === "reserve") {
           const list = document.querySelector(".home-parking-list");
           if (list) list.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else if (action === "map") {
-          const map = document.getElementById("geo-map");
-          if (map) map.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       };
     });
