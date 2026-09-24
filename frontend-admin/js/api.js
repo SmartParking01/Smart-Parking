@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:4000/api";
+const API_BASE_URL = "https://smart-parking-sxrc.onrender.com/api";
 
 const Api = {
   getToken() { return localStorage.getItem("sp_admin_token"); },
