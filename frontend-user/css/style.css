@@ -493,6 +493,70 @@ p{
   border-color:rgba(239,68,68,.35);
 }
 
+/* ============ MODAL (Ver todos) ============ */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(6,10,22,.72);
+  backdrop-filter:blur(3px);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:100;
+  animation:fadeIn .18s ease;
+}
+@keyframes fadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+.modal-panel{
+  width:100%;
+  max-width:440px;
+  max-height:82vh;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-bottom:none;
+  border-radius:20px 20px 0 0;
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+  animation:riseIn .22s ease;
+  overflow:hidden;
+}
+.modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:16px 18px;
+  border-bottom:1px solid var(--border-soft);
+  flex-shrink:0;
+}
+.modal-header h2{
+  margin:0;
+  font-size:16px;
+}
+.modal-close{
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  color:var(--text-2);
+  width:32px;height:32px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  flex-shrink:0;
+  transition:all .15s;
+}
+.modal-close svg{ width:16px;height:16px; }
+.modal-close:hover{ border-color:var(--blue); color:var(--blue-bright); }
+.modal-body{
+  padding:6px 18px 18px;
+  overflow-y:auto;
+}
+.modal-list .establishment-item{ padding:14px 6px; }
+
 /* ============ MAPA ============ */
 #geo-map{
   width:100%;

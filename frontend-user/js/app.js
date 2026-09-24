@@ -20,6 +20,7 @@ const routes = {
   "#/register": renderRegister,
   "#/forgot": renderForgot,
   "#/home": renderHome,
+  "#/map": renderMapa,
   "#/establishment": renderEstablishment,
   "#/reserve": renderReserveConfirm,
   "#/payment": renderPayment,
@@ -45,7 +46,7 @@ async function router() {
     return navigate("#/home");
   }
 
-  const isTopLevel = ["#/home", "#/history", "#/profile"].includes(base);
+  const isTopLevel = ["#/home", "#/map", "#/history", "#/profile"].includes(base);
   backBtn.classList.toggle("visible", !isTopLevel && !AUTH_FREE_ROUTES.includes(base));
   bottomNav.style.display = AUTH_FREE_ROUTES.includes(base) ? "none" : "flex";
 
@@ -80,6 +81,36 @@ function setTitle(title) {
 
 function showLoading() {
   view.innerHTML = `<div class="spinner"></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// MODAL genérico (usado para "Ver todos" y similares)
+// ---------------------------------------------------------------------------
+const modalRoot = document.getElementById("modal-root");
+
+function openModal(title, bodyHtml) {
+  modalRoot.innerHTML = `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h2>${escapeHtml(title)}</h2>
+          <button class="modal-close" id="modal-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">${bodyHtml}</div>
+      </div>
+    </div>
+  `;
+  document.getElementById("modal-overlay").onclick = (e) => {
+    if (e.target.id === "modal-overlay") closeModal();
+  };
+  document.getElementById("modal-close").onclick = closeModal;
+  return modalRoot.querySelector(".modal-body");
+}
+
+function closeModal() {
+  modalRoot.innerHTML = "";
 }
 
 // ---------------------------------------------------------------------------
@@ -209,8 +240,39 @@ function makePinIcon(selected) {
   });
 }
 
-async function renderHome() {
-  setTitle("Parqueos disponibles");
+const HOME_VISIBLE_LIMIT = 3;
+
+function establishmentItemHtml(e) {
+  const level = availabilityLevel(e.availability);
+  return `
+      <div class="establishment-item" data-id="${e.id}">
+        <div class="establishment-icon">🅿️</div>
+        <div class="establishment-info">
+          <h3>${escapeHtml(e.name)}</h3>
+          <p style="margin:0;">${escapeHtml(e.address || "Dirección no especificada")}</p>
+          <span class="availability-pill ${level}">${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres</span>
+        </div>
+      </div>`;
+}
+
+function attachEstablishmentClicks(container, { closeModalOnClick } = {}) {
+  container.querySelectorAll(".establishment-item").forEach((item) => {
+    item.onclick = () => {
+      state.currentEstablishmentId = item.dataset.id;
+      if (closeModalOnClick) closeModal();
+      navigate("#/establishment");
+    };
+  });
+}
+
+function openAllParkingsModal(establishments) {
+  const html = establishments.map(establishmentItemHtml).join("");
+  const bodyEl = openModal("Todos los estacionamientos", `<div class="modal-list">${html}</div>`);
+  attachEstablishmentClicks(bodyEl, { closeModalOnClick: true });
+}
+
+async function renderParkingsAndMap(title) {
+  setTitle(title);
   showLoading();
   const { establishments } = await Api.get("/establishments");
   state.establishments = establishments;
@@ -221,34 +283,23 @@ async function renderHome() {
   }
 
   const withCoords = establishments.filter((e) => e.latitude != null && e.longitude != null);
+  const visibleEstablishments = establishments.slice(0, HOME_VISIBLE_LIMIT);
+  const hasMore = establishments.length > HOME_VISIBLE_LIMIT;
 
   view.innerHTML = `
     ${withCoords.length > 0 ? '<div id="geo-map"></div>' : ""}
     <div class="card" id="establishment-list"></div>
+    ${hasMore ? '<button class="btn secondary" id="ver-todos-btn">Ver todos los estacionamientos</button>' : ""}
   `;
 
   const listEl = document.getElementById("establishment-list");
-  listEl.innerHTML = establishments
-    .map((e) => {
-      const level = availabilityLevel(e.availability);
-      return `
-      <div class="establishment-item" data-id="${e.id}">
-        <div class="establishment-icon">🅿️</div>
-        <div class="establishment-info">
-          <h3>${escapeHtml(e.name)}</h3>
-          <p style="margin:0;">${escapeHtml(e.address || "Dirección no especificada")}</p>
-          <span class="availability-pill ${level}">${e.availability.AVAILABLE} de ${e.availability.TOTAL} libres</span>
-        </div>
-      </div>`;
-    })
-    .join("");
+  listEl.innerHTML = visibleEstablishments.map(establishmentItemHtml).join("");
+  attachEstablishmentClicks(listEl);
 
-  listEl.querySelectorAll(".establishment-item").forEach((item) => {
-    item.onclick = () => {
-      state.currentEstablishmentId = item.dataset.id;
-      navigate("#/establishment");
-    };
-  });
+  const verTodosBtn = document.getElementById("ver-todos-btn");
+  if (verTodosBtn) {
+    verTodosBtn.onclick = () => openAllParkingsModal(establishments);
+  }
 
   // Mapa geográfico: un pin por cada establecimiento con coordenadas.
   if (withCoords.length > 0) {
@@ -282,6 +333,14 @@ async function renderHome() {
       map.fitBounds(group.getBounds().pad(0.25));
     }
   }
+}
+
+async function renderHome() {
+  return renderParkingsAndMap("Parqueos disponibles");
+}
+
+async function renderMapa() {
+  return renderParkingsAndMap("Mapa");
 }
 
 // ---------------------------------------------------------------------------
