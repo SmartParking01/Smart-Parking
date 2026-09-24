@@ -140,7 +140,7 @@
 
       <div class="home-section-head">
         <h3>Parqueos cercanos</h3>
-        <a>Ver todos</a>
+        <a id="home-ver-todos">Ver todos</a>
       </div>
 
       <div class="home-parking-list">
@@ -159,6 +159,16 @@
         `).join("")}
       </div>
     `;
+
+    const verTodosLink = document.getElementById("home-ver-todos");
+    if (verTodosLink) {
+      verTodosLink.style.cursor = "pointer";
+      verTodosLink.onclick = () => {
+        if (typeof window.__smartParkingOpenAllParkings === "function") {
+          window.__smartParkingOpenAllParkings();
+        }
+      };
+    }
 
     view.querySelectorAll(".home-parking").forEach((card, idx) => {
       card.onclick = () => {
@@ -180,8 +190,12 @@
           const list = document.querySelector(".home-parking-list");
           if (list) list.scrollIntoView({ behavior: "smooth", block: "start" });
         } else if (action === "map") {
-          const map = document.getElementById("geo-map");
-          if (map) map.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (typeof window.__smartParkingGoToMap === "function") {
+            window.__smartParkingGoToMap();
+          } else {
+            const mapBtn = document.querySelector('#bottom-nav .nav-btn[data-route="#/map"]');
+            if (mapBtn) mapBtn.click();
+          }
         }
       };
     });

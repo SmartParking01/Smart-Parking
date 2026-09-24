@@ -271,7 +271,13 @@ function openAllParkingsModal(establishments) {
   attachEstablishmentClicks(bodyEl, { closeModalOnClick: true });
 }
 
-async function renderParkingsAndMap(title) {
+// Expuestas para que theme.js (capa de decoración visual del Home) pueda
+// enlazar su propio botón/enlace "Ver todos" con esta misma lógica, sin que
+// app.js dependa de theme.js.
+window.__smartParkingOpenAllParkings = () => openAllParkingsModal(state.establishments);
+window.__smartParkingGoToMap = () => navigate("#/map");
+
+async function renderParkingsAndMap(title, { limit } = {}) {
   setTitle(title);
   showLoading();
   const { establishments } = await Api.get("/establishments");
@@ -283,8 +289,9 @@ async function renderParkingsAndMap(title) {
   }
 
   const withCoords = establishments.filter((e) => e.latitude != null && e.longitude != null);
-  const visibleEstablishments = establishments.slice(0, HOME_VISIBLE_LIMIT);
-  const hasMore = establishments.length > HOME_VISIBLE_LIMIT;
+  const hasLimit = typeof limit === "number";
+  const visibleEstablishments = hasLimit ? establishments.slice(0, limit) : establishments;
+  const hasMore = hasLimit && establishments.length > limit;
 
   view.innerHTML = `
     ${withCoords.length > 0 ? '<div id="geo-map"></div>' : ""}
@@ -336,7 +343,7 @@ async function renderParkingsAndMap(title) {
 }
 
 async function renderHome() {
-  return renderParkingsAndMap("Parqueos disponibles");
+  return renderParkingsAndMap("Parqueos disponibles", { limit: HOME_VISIBLE_LIMIT });
 }
 
 async function renderMapa() {
