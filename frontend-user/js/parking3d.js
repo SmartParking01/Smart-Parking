@@ -9,11 +9,15 @@
 // Dulce consiguió (ESTACIONAMIENTOS_IDEA.pdf). La clave es el nombre EXACTO
 // del establecimiento tal como queda en la base de datos (backend/src/seed.js).
 const PARKING_3D_LAYOUTS = {
-  "Universidad Latina de Costa Rica — Campus Heredia": { layout: "lots", building: "Campus universitario" },
+  "Universidad Latina de Costa Rica — Campus Heredia": {
+    layout: "lots",
+    building: "Campus universitario",
+    photo: "assets/parking3d-u-latina.jpg",
+  },
   "Universidad Fidelitas — Sede San Pedro": { layout: "surface-lot", building: "Edificio universitario" },
-  "Hospital CIMA San José": { layout: "surface-lot", building: "Hospital" },
-  "Hospital Clínica Bíblica": { layout: "structured-garage", building: "Torre de parqueo" },
-  "Condominio Lake Arenal Condos": { layout: "covered-small", building: "Condominio (parqueo techado)" },
+  "Hospital CIMA San José": { layout: "surface-lot", building: "Hospital", photo: "assets/parking3d-hospital-cima.jpg" },
+  "Hospital Clínica Bíblica": { layout: "structured-garage", building: "Torre de parqueo", photo: "assets/parking3d-clinica-biblica.jpg" },
+  "Condominio Lake Arenal Condos": { layout: "covered-small", building: "Condominio (parqueo techado)", photo: "assets/parking3d-lake-arenal-condos.jpg" },
   "Condominio de las Torres de Paseo Colón": { layout: "tower-shared", building: "Torre residencial" },
   "Condominio Torres del Lago": { layout: "tower-shared", building: "Torres residenciales" },
   "Condominio Lindora Bosques, Santa Ana": { layout: "visitor-only", building: "Parqueo de visitas" },
@@ -58,12 +62,12 @@ function renderParking3DBlock(spaces, establishmentName) {
     </div>
   `).join("");
 
-  return `
-    <div class="p3d-wrap">
-      <div class="p3d-header">
-        <span class="p3d-tag">Vista 3D · ${escapeHtmlP3d(cfg.building)}</span>
-        <span class="muted p3d-hint">Solo referencia visual — para reservar o gestionar usa la cuadrícula de abajo.</span>
-      </div>
+  const sceneHtml = cfg.photo
+    ? `
+      <div class="p3d-photo">
+        <img src="${escapeHtmlP3d(cfg.photo)}" alt="${escapeHtmlP3d(cfg.building)}" loading="lazy" />
+      </div>`
+    : `
       <div class="p3d-scene p3d-layout-${cfg.layout}">
         <div class="p3d-stage">
           <div class="p3d-block p3d-building-block"><span>${escapeHtmlP3d(cfg.building)}</span></div>
@@ -71,7 +75,15 @@ function renderParking3DBlock(spaces, establishmentName) {
             ${zonesHtml || '<p class="muted">Sin espacios configurados todavía.</p>'}
           </div>
         </div>
+      </div>`;
+
+  return `
+    <div class="p3d-wrap">
+      <div class="p3d-header">
+        <span class="p3d-tag">Vista 3D · ${escapeHtmlP3d(cfg.building)}</span>
+        <span class="muted p3d-hint">Solo referencia visual — para reservar o gestionar usa la cuadrícula de abajo.</span>
       </div>
+      ${sceneHtml}
       <div class="p3d-legend">
         <span><span class="p3d-dot p3d-status-AVAILABLE"></span> Disponible</span>
         <span><span class="p3d-dot p3d-status-RESERVED"></span> Reservado</span>

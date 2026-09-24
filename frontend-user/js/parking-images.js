@@ -39,5 +39,10 @@ window.PARKING_IMAGES = {
 
   // --- U Fidelitas --- (.jpg)
   "Fidelitas":              "assets/parking-u-fidelitas.jpg",
-  "U Fidelitas":            "assets/parking-u-fidelitas.jpg"
+  "U Fidelitas":            "assets/parking-u-fidelitas.jpg",
+
+  // --- Lake Arenal Condos --- (.jpg)
+  "Lake Arenal Condos":     "assets/parking-lake-arenal-condos.jpg",
+  "Lake Arenal":            "assets/parking-lake-arenal-condos.jpg",
+  "Arenal Condos":          "assets/parking-lake-arenal-condos.jpg"
 };
